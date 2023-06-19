@@ -1,3 +1,5 @@
+use leptos::*;
+
 fn main() {
-    println!("Hello, world!");
+    mount_to_body(|cx| view! { cx,  <p>"Hello, world!"</p> })
 }
