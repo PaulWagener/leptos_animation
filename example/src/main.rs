@@ -1,13 +1,11 @@
 use leptos::html::Canvas;
 use leptos::*;
 use leptos_animation::*;
-use palette::{self, convert::FromColorUnclamped, rgb::Rgb, FromColor, Hsv, Mix, Srgb};
-use std::{
-    f64::consts::PI,
-    ops::{Add, Sub},
-};
+use palette::{self, convert::FromColorUnclamped, rgb::Rgb, FromColor, Hsv, Mix};
+use std::f64::consts::PI;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::CanvasRenderingContext2d;
+
 #[derive(Clone)]
 struct Color {
     red: u8,
