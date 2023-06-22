@@ -1,10 +1,12 @@
-use std::f64::consts::PI;
-use leptos::*;
 use leptos::html::Canvas;
-use wasm_bindgen;
+use leptos::*;
+use leptos_animation::*;
+use std::{
+    f64::consts::PI,
+    ops::{Add, Sub},
+};
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
-
+use web_sys::CanvasRenderingContext2d;
 #[derive(Clone)]
 struct Color {
     red: u8,
@@ -25,6 +27,16 @@ enum Duration {
     Long,
 }
 
+impl From<Duration> for std::time::Duration {
+    fn from(value: Duration) -> Self {
+        match value {
+            Duration::Short => std::time::Duration::from_secs_f64(0.2),
+            Duration::Normal => std::time::Duration::from_secs_f64(0.5),
+            Duration::Long => std::time::Duration::from_secs_f64(1.5),
+        }
+    }
+}
+
 #[derive(Clone)]
 enum Easing {
     Linear,
@@ -33,23 +45,67 @@ enum Easing {
     Elastic,
 }
 
+impl From<Easing> for leptos_animation::Easing {
+    fn from(value: Easing) -> Self {
+        match value {
+            Easing::Linear => easing::linear,
+            Easing::Smooth => easing::cubic_out,
+            Easing::Overshoot => easing::back_out,
+            Easing::Elastic => easing::elastic_out,
+        }
+    }
+}
+
 fn main() {
     mount_to_body(|cx| {
         // These are the target values that the animation is trying to reach
-        let (target_color, set_target_color) = create_signal(cx, Color { red: 255, green: 0, blue: 0 });
-        let (target_position, set_target_position) = create_signal(cx, (200.0, 200.0));
+        let (target_color, set_target_color) = create_signal(
+            cx,
+            Color {
+                red: 255,
+                green: 0,
+                blue: 0,
+            },
+        );
         let (target_size, set_target_size) = create_signal(cx, Size::Small);
         let (target_rotation, set_target_rotation) = create_signal(cx, 0.0);
+        let (target_position, set_target_position) = create_signal(cx, (200.0, 200.0));
 
         // Animation easings & durations are normally hardcoded, they are only signals here for demo purposes
         let (duration, set_duration) = create_signal(cx, Duration::Normal);
         let (easing, set_easing) = create_signal(cx, Easing::Smooth);
 
+        let size = create_animated_signal(
+            cx,
+            move || AnimationTarget {
+                target: match target_size.get() {
+                    Size::Small => 50.0,
+                    Size::Big => 100.0,
+                } as f64,
+                duration: duration.get_untracked().into(),
+                easing: easing.get_untracked().into(),
+                mode: AnimationMode::Start,
+            },
+            tween::default(),
+        );
+
+        let position = create_animated_signal(
+            cx,
+            move || target_position.get().into(),
+            |from, to, progress| {
+                (
+                    (to.0 - from.0) * progress + from.0,
+                    (to.1 - from.1) * progress + from.1,
+                )
+            },
+        );
+
         // Draw a square with the animated signals
         let canvas_ref = create_node_ref::<Canvas>(cx);
         create_effect(cx, move |_| {
             if let Some(canvas) = canvas_ref.get() {
-                let ctx = canvas.get_context("2d")
+                let ctx = canvas
+                    .get_context("2d")
                     .unwrap()
                     .unwrap()
                     .dyn_into::<CanvasRenderingContext2d>()
@@ -59,18 +115,14 @@ fn main() {
                 ctx.clear_rect(0.0, 0.0, 800.0, 800.0);
                 ctx.scale(2.0, 2.0).unwrap();
 
-                let (x, y) = target_position.get();
+                let (x, y) = position.get();
                 ctx.translate(x, y).unwrap();
-
                 ctx.rotate(target_rotation.get() / 180.0 * PI).unwrap();
-
-                let size = match target_size.get() {
-                    Size::Small => 50.0,
-                    Size::Big => 100.0,
-                };
 
                 let Color { red, green, blue } = target_color.get();
                 ctx.set_fill_style(&JsValue::from_str(&format!("rgb({red}, {green}, {blue})")));
+
+                let size = size.get();
                 ctx.fill_rect(-size / 2.0, -size / 2.0, size, size);
                 ctx.stroke_rect(-size / 2.0, -size / 2.0, size, size);
             }
@@ -251,37 +303,14 @@ fn main() {
                         </fieldset>
                     </div>
                     <div class="canvas">
-                        <div class="container">
-                            <canvas width="800" height="800" _ref=canvas_ref></canvas>
-                            <button
-                                class="top_left"
-                                on:click=move |e| { set_target_position.set((50.0, 50.0)) }
-                            >
-                                "Move here"
-                            </button>
-                            <button
-                                class="top_right"
-                                on:click=move |e| { set_target_position.set((350.0, 50.0)) }
-                            >
-                                "Move here"
-                            </button>
-                            <button
-                                class="bottom_left"
-                                on:click=move |e| { set_target_position.set((50.0, 350.0)) }
-                            >
-                                "Move here"
-                            </button>
-                            <button
-                                class="bottom_right"
-                                on:click=move |e| { set_target_position.set((350.0, 350.0)) }
-                            >
-                                "Move here"
-                            </button>
-                        </div>
-                        <div>
-                            "Buttons: Start" <br/> "Left mouse button: StartOrReplace" <br/>
-                            "Middle mouse button: SnapOrReplace" <br/> "Right mouse button: Snap"
-                        </div>
+                        <canvas
+                            width="800"
+                            height="800"
+                            _ref=canvas_ref
+                            on:mousedown=move |e| {
+                                set_target_position.set((e.offset_x() as f64, e.offset_y() as f64));
+                            }
+                        ></canvas>
                     </div>
                 </main>
             </div>
