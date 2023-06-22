@@ -1,5 +1,6 @@
 use std::{
     collections::VecDeque,
+    ops::{Add, Sub},
     time::{Duration, Instant},
 };
 
@@ -56,14 +57,6 @@ impl AnimationContext {
                 animation_context.set_ticks.set(AnimationTick)
             });
         }
-    }
-
-    /// Call this from a signal to automatically update it at the next animation tick
-    fn request_next_tick(&self) {
-        // Subscribe to the animation ticks
-        self.ticks.get();
-
-        self.request_animation_frame();
     }
 }
 
@@ -140,6 +133,8 @@ where
     T: 'static,
     T: Clone, //where V: Clone, I: PartialEq {
     I: Clone,
+    I: Sub<I, Output = I>,
+    I: Add<I, Output = I>,
 {
     let context: AnimationContext = use_context(cx)
         .expect("No AnimationContext present, call AnimationContext::new() in a parent scope");
@@ -203,7 +198,7 @@ where
         ()
     });
 
-    let f: Signal<I> = Signal::derive(cx, move || {
+    Signal::derive(cx, move || {
         animation_changed.get();
 
         animation_status
@@ -212,89 +207,32 @@ where
             AnimationStatus::BeforeFirstAnimation => unreachable!(""),
             AnimationStatus::NoAnimation(value) => tween(&value, &value, 1.0),
             AnimationStatus::RunningAnimations(animations) => {
-                context.request_next_tick();
+                // Keep this signal updated in the animation loop
+                context.ticks.get();
+                context.request_animation_frame();
 
-                //
+                // Add all animation results to a single value
                 animations.iter().fold(
                     animations.front().unwrap().to_value.clone(),
                     |acc, animation| {
                         let animation_value =
                             tween(&animation.from, &animation.to, animation.progress());
 
-                        animation.progress();
-                        return acc;
+                        acc + (animation_value - animation.to_value.clone())
+
+                        // acc: 900
+                        // animation_value: 400
+                        // sub: -500
+                        // add it to the accumulator
+
+                        // Result: 900 + (-500) + ... + ... = 400
+
+                        // animation.progress();
+                        // return acc;
                     },
                 )
             }
         });
         i
-    });
-    f
-
-    //
-    //     let animation_status = create_rw_signal(cx, AnimatedValue::Static(initial.clone()));
-    //     let memo = create_memo::<I>(cx, move |_| {
-    //         match animation_status.get() {
-    //             AnimatedValue::Static(v) => tween(&v, &v, AnimationProgress(0.0)),
-    //             AnimatedValue::Animated { from, to, duration, start } => {
-    //                 let now = Instant::now();
-    //                 if now > start + duration {
-    //                     // Animation finished
-    //                     tween(&from, &to, AnimationProgress(1.0))
-    //                 } else {
-    //                     // Animation still running
-    //                     context.request_next_tick();
-    //
-    //                     tween(&from, &to, AnimationProgress((now - start).as_secs_f64() / duration.as_secs_f64()))
-    //                 }
-    //             }
-    //         }
-    //     });
-    //     AnimatedSignal {
-    //         animation_status,
-    //         memo,
-    //     }
-    // }
-    //
-    // impl<V, U> AnimatedSignal<V, U> where V: Clone, U: Clone {
-    //     /// Snaps directly to the new value, cancelling any previous animation
-    //     fn snap_to(&self, value: V) {
-    //         self.animation_status.set(AnimatedValue::Static(value));
-    //     }
-    //
-    //     /// Replace the target of a running animation (if any) with the new value
-    //     fn replace_to(&self, value: V) {
-    //         self.animation_status.set(match self.animation_status.get_untracked() {
-    //             AnimatedValue::Static(_) => AnimatedValue::Static(value),
-    //             AnimatedValue::Animated { from, start, duration, .. } =>
-    //                 AnimatedValue::Animated { from, to: value, start, duration }
-    //         });
-    //     }
-    //
-    //     /// Start a new animation, cancelling any previous one
-    //     fn animate_to(&self, value: V, duration: Duration) {
-    //         self.animation_status.set(AnimatedValue::Animated {
-    //             from: match self.animation_status.get_untracked() {
-    //                 AnimatedValue::Static(value) => value,
-    //
-    //                 // Use the `to` from the previous animation, effectively fast-fowarding it if it is still running
-    //                 AnimatedValue::Animated { to, .. } => to
-    //             },
-    //             to: value,
-    //             start: Instant::now(),
-    //             duration,
-    //         })
-    //     }
-    // }
-    //
-    // impl<V, I> SignalGet<I> for AnimatedSignal<V, I> where V: Clone, I: Clone {
-    //     fn get(&self) -> I {
-    //         self.memo.get()
-    //     }
-    //
-    //     fn try_get(&self) -> Option<I> {
-    //         self.memo.try_get()
-    //     }
-    // }
-    //
+    })
 }
