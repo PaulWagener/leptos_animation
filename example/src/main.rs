@@ -1,6 +1,7 @@
 use leptos::html::Canvas;
 use leptos::*;
 use leptos_animation::*;
+use palette::{self, convert::FromColorUnclamped, rgb::Rgb, FromColor, Hsv, Mix, Srgb};
 use std::{
     f64::consts::PI,
     ops::{Add, Sub},
@@ -12,6 +13,16 @@ struct Color {
     red: u8,
     green: u8,
     blue: u8,
+}
+
+impl From<&Color> for Hsv<Rgb, f64> {
+    fn from(Color { red, green, blue }: &Color) -> Self {
+        Hsv::from_color_unclamped(Rgb::new(
+            *red as f64 / 255.0,
+            *green as f64 / 255.0,
+            *blue as f64 / 255.0,
+        ))
+    }
 }
 
 #[derive(Clone)]
@@ -75,6 +86,7 @@ fn main() {
         let (duration, set_duration) = create_signal(cx, Duration::Normal);
         let (easing, set_easing) = create_signal(cx, Easing::Smooth);
 
+        // Animated derived signals
         let size = create_animated_signal(
             cx,
             move || AnimationTarget {
@@ -89,14 +101,53 @@ fn main() {
             tween::default(),
         );
 
+        let rotation = create_animated_signal(
+            cx,
+            move || AnimationTarget {
+                target: target_rotation.get(),
+                duration: duration.get_untracked().into(),
+                easing: easing.get_untracked().into(),
+                mode: AnimationMode::Start,
+            },
+            tween::default(),
+        );
+
         let position = create_animated_signal(
             cx,
-            move || target_position.get().into(),
+            move || AnimationTarget {
+                target: target_position.get(),
+                duration: duration.get_untracked().into(),
+                easing: easing.get_untracked().into(),
+                mode: AnimationMode::Start,
+            },
             |from, to, progress| {
                 (
                     (to.0 - from.0) * progress + from.0,
                     (to.1 - from.1) * progress + from.1,
                 )
+            },
+        );
+
+        let color = create_animated_signal(
+            cx,
+            move || AnimationTarget {
+                target: target_color.get(),
+                duration: duration.get_untracked().into(),
+                easing: easing.get_untracked().into(),
+                mode: AnimationMode::Start,
+            },
+            |from, to, progress| -> Color {
+                // Convert to HSV to do the tweening
+                let from: Hsv<_, _> = from.into();
+                let to = to.into();
+
+                let mix = Rgb::from_color(from.mix(to, progress));
+
+                Color {
+                    red: (mix.red * 255.0) as u8,
+                    green: (mix.green * 255.0) as u8,
+                    blue: ((mix.blue * 255.0) as u8),
+                }
             },
         );
 
@@ -117,9 +168,9 @@ fn main() {
 
                 let (x, y) = position.get();
                 ctx.translate(x, y).unwrap();
-                ctx.rotate(target_rotation.get() / 180.0 * PI).unwrap();
+                ctx.rotate(rotation.get() / 180.0 * PI).unwrap();
 
-                let Color { red, green, blue } = target_color.get();
+                let Color { red, green, blue } = color.get();
                 ctx.set_fill_style(&JsValue::from_str(&format!("rgb({red}, {green}, {blue})")));
 
                 let size = size.get();
