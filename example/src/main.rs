@@ -1,3 +1,4 @@
+use derive_more::{Add, Mul, Sub};
 use leptos::html::Canvas;
 use leptos::*;
 use leptos_animation::*;
@@ -5,8 +6,10 @@ use palette::{self, convert::FromColorUnclamped, rgb::Rgb, FromColor, Hsv, Mix};
 use std::f64::consts::PI;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::CanvasRenderingContext2d;
+extern crate console_error_panic_hook;
+use std::panic;
 
-#[derive(Clone)]
+#[derive(Clone, Add, Sub)]
 struct Color {
     red: u8,
     green: u8,
@@ -34,6 +37,12 @@ enum Duration {
     Short,
     Normal,
     Long,
+}
+
+#[derive(Add, Sub, Mul, Copy, Clone)] // TODO: Try without Copy & Clone
+struct Position {
+    x: f64,
+    y: f64,
 }
 
 impl From<Duration> for std::time::Duration {
@@ -66,7 +75,12 @@ impl From<Easing> for leptos_animation::Easing {
 }
 
 fn main() {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+    wasm_logger::init(wasm_logger::Config::default());
+
     mount_to_body(|cx| {
+        AnimationContext::provide(cx);
+
         // These are the target values that the animation is trying to reach
         let (target_color, set_target_color) = create_signal(
             cx,
@@ -78,7 +92,8 @@ fn main() {
         );
         let (target_size, set_target_size) = create_signal(cx, Size::Small);
         let (target_rotation, set_target_rotation) = create_signal(cx, 0.0);
-        let (target_position, set_target_position) = create_signal(cx, (200.0, 200.0));
+        let (target_position, set_target_position) =
+            create_signal(cx, Position { x: 200.0, y: 200.0 });
 
         // Animation easings & durations are normally hardcoded, they are only signals here for demo purposes
         let (duration, set_duration) = create_signal(cx, Duration::Normal);
@@ -118,12 +133,7 @@ fn main() {
                 easing: easing.get_untracked().into(),
                 mode: AnimationMode::Start,
             },
-            |from, to, progress| {
-                (
-                    (to.0 - from.0) * progress + from.0,
-                    (to.1 - from.1) * progress + from.1,
-                )
-            },
+            tween::default(),
         );
 
         let color = create_animated_signal(
@@ -160,11 +170,13 @@ fn main() {
                     .dyn_into::<CanvasRenderingContext2d>()
                     .unwrap();
 
+                log!("Hoi");
+
                 ctx.reset_transform().unwrap();
                 ctx.clear_rect(0.0, 0.0, 800.0, 800.0);
                 ctx.scale(2.0, 2.0).unwrap();
 
-                let (x, y) = position.get();
+                let Position { x, y } = position.get();
                 ctx.translate(x, y).unwrap();
                 ctx.rotate(rotation.get() / 180.0 * PI).unwrap();
 
@@ -357,9 +369,10 @@ fn main() {
                             height="800"
                             _ref=canvas_ref
                             on:mousedown=move |e| {
-                                set_target_position.set((e.offset_x() as f64, e.offset_y() as f64));
+                                set_target_position.set(Position { x: e.offset_x() as f64, y: e.offset_y() as f64});
                             }
                         ></canvas>
+
                     </div>
                 </main>
             </div>

@@ -1,7 +1,8 @@
+use instant::Instant;
 use std::{
     collections::VecDeque,
     ops::{Add, Sub},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use leptos::{
@@ -31,7 +32,7 @@ pub struct AnimationContext {
 
 impl AnimationContext {
     /// Sets up an AnimationContext for this scope and all child scopes
-    pub fn new(cx: Scope) -> AnimationContext {
+    pub fn provide(cx: Scope) -> AnimationContext {
         let (ticks, set_ticks) = create_signal(cx, AnimationTick);
         let animation_frame_requested = store_value(cx, AnimationFrameRequested(false));
 

@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 leptos = { version = "0.3.1", features = ["stable"] }
+instant = { version = "0.1.12", features = ["wasm-bindgen"] }
