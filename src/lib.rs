@@ -6,8 +6,8 @@ use std::{
 };
 
 use leptos::{
-    create_effect, create_signal, provide_context, request_animation_frame, store_value,
-    use_context, ReadSignal, Scope, Signal, SignalGet, SignalSet, StoredValue, WriteSignal,
+    create_signal, provide_context, request_animation_frame, store_value, use_context, ReadSignal,
+    Scope, Signal, SignalGet, SignalSet, StoredValue, WriteSignal,
 };
 
 pub mod animation_target;
