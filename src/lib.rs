@@ -6,10 +6,9 @@ use std::{
 };
 
 use leptos::{
-    create_signal, provide_context, request_animation_frame, store_value, use_context, ReadSignal,
-    Scope, Signal, SignalGet, SignalSet, StoredValue, WriteSignal,
+    create_memo, create_signal, provide_context, request_animation_frame, store_value, use_context,
+    ReadSignal, Scope, Signal, SignalGet, SignalSet, StoredValue, WriteSignal,
 };
-
 pub mod animation_target;
 pub mod easing;
 pub mod tween;
@@ -144,8 +143,16 @@ where
         .expect("No AnimationContext present, call AnimationContext::new() in a parent scope");
     let animation_status = store_value(cx, AnimationStatus::<T, I>::BeforeFirstAnimation);
 
+    #[derive(Clone)]
+    struct NeverEqual;
+    impl PartialEq for NeverEqual {
+        fn eq(&self, _: &Self) -> bool {
+            false
+        }
+    }
+
     // Special in-between signal used to update the running_animations that only runs based on source changes
-    let animation_changed = Signal::derive(cx, move || {
+    let animation_changed = create_memo(cx, move |_| {
         let animation_target = source();
 
         animation_status.update_value(|animation_status| {
@@ -199,7 +206,7 @@ where
                 },
             }
         });
-        ()
+        NeverEqual
     });
 
     Signal::derive(cx, move || {
