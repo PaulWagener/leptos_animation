@@ -20,9 +20,9 @@ pub fn Simple(cx: Scope) -> impl IntoView {
         <div>
             <button on:click=clear>"Clear"</button>
             <button on:click=decrement>"-1"</button>
-            <span>"Value: " {value} "!"</span>
             <button on:click=increment>"+1"</button>
-            <span>"Animated value: " {animated_value} "!"</span>
+            <div>"Value: " {value} "!"</div>
+            <div>"Animated value: " {animated_value} "!"</div>
         </div>
     }
 }

@@ -50,6 +50,9 @@ impl AnimationContext {
     pub fn request_animation_frame(&self) {
         // Prevent multiple animation frame requests from existing simultaneously
         if !self.animation_frame_requested.get_value().0 {
+            self.animation_frame_requested
+                .set_value(AnimationFrameRequested(true));
+
             let animation_context = self.clone();
             request_animation_frame(move || {
                 animation_context
