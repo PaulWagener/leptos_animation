@@ -6,8 +6,8 @@ use std::{
 };
 
 use leptos::{
-    create_memo, create_signal, provide_context, request_animation_frame, store_value, use_context,
-    ReadSignal, Scope, Signal, SignalGet, SignalSet, StoredValue, WriteSignal,
+    create_memo, create_signal, log, provide_context, request_animation_frame, store_value,
+    use_context, ReadSignal, Scope, Signal, SignalGet, SignalSet, StoredValue, WriteSignal,
 };
 pub mod animation_target;
 pub mod easing;
@@ -230,16 +230,6 @@ where
                             tween(&animation.from, &animation.to, animation.progress());
 
                         acc + (animation_value - animation.to_value.clone())
-
-                        // acc: 900
-                        // animation_value: 400
-                        // sub: -500
-                        // add it to the accumulator
-
-                        // Result: 900 + (-500) + ... + ... = 400
-
-                        // animation.progress();
-                        // return acc;
                     },
                 )
             }

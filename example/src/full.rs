@@ -9,9 +9,9 @@ use web_sys::CanvasRenderingContext2d;
 
 #[derive(Clone, Add, Sub)]
 struct Color {
-    red: u8,
-    green: u8,
-    blue: u8,
+    red: i16,
+    green: i16,
+    blue: i16,
 }
 
 impl From<&Color> for Hsv<Rgb, f64> {
@@ -46,9 +46,9 @@ struct Position {
 impl From<Duration> for std::time::Duration {
     fn from(value: Duration) -> Self {
         match value {
-            Duration::Short => std::time::Duration::from_secs_f64(0.2),
-            Duration::Normal => std::time::Duration::from_secs_f64(0.5),
-            Duration::Long => std::time::Duration::from_secs_f64(1.5),
+            Duration::Short => std::time::Duration::from_secs_f64(0.5),
+            Duration::Normal => std::time::Duration::from_secs_f64(1.0),
+            Duration::Long => std::time::Duration::from_secs_f64(2.0),
         }
     }
 }
@@ -122,7 +122,12 @@ pub fn Full(cx: Scope) -> impl IntoView {
         move || AnimationTarget {
             target: target_position.get(),
             duration: duration.get_untracked().into(),
-            easing: easing.get_untracked().into(),
+            easing: match easing.get_untracked() {
+                Easing::Linear => easing::linear,
+                Easing::Smooth => easing::cubic_in_out,
+                Easing::Overshoot => easing::back_in_out,
+                Easing::Elastic => easing::elastic_out,
+            },
             mode: AnimationMode::Start,
         },
         tween::default(),
@@ -144,9 +149,9 @@ pub fn Full(cx: Scope) -> impl IntoView {
             let mix = Rgb::from_color(from.mix(to, progress));
 
             Color {
-                red: (mix.red * 255.0) as u8,
-                green: (mix.green * 255.0) as u8,
-                blue: ((mix.blue * 255.0) as u8),
+                red: (mix.red * 255.0) as i16,
+                green: (mix.green * 255.0) as i16,
+                blue: ((mix.blue * 255.0) as i16),
             }
         },
     );
@@ -161,8 +166,6 @@ pub fn Full(cx: Scope) -> impl IntoView {
                 .unwrap()
                 .dyn_into::<CanvasRenderingContext2d>()
                 .unwrap();
-
-            log!("Hoi");
 
             ctx.reset_transform().unwrap();
             ctx.clear_rect(0.0, 0.0, 800.0, 800.0);
@@ -237,9 +240,9 @@ pub fn Full(cx: Scope) -> impl IntoView {
                                 let color = event_target_value(&e);
                                 set_target_color
                                     .set(Color {
-                                        red: u8::from_str_radix(&color[1..3], 16).unwrap(),
-                                        green: u8::from_str_radix(&color[3..5], 16).unwrap(),
-                                        blue: u8::from_str_radix(&color[5..7], 16).unwrap(),
+                                        red: i16::from_str_radix(&color[1..3], 16).unwrap(),
+                                        green: i16::from_str_radix(&color[3..5], 16).unwrap(),
+                                        blue: i16::from_str_radix(&color[5..7], 16).unwrap(),
                                     });
                             }
                             prop:value=move || {

@@ -16,7 +16,7 @@ fn main() {
         AnimationContext::provide(cx);
 
         view! {cx,
-            <div><Simple /></div>
+            <div><Full /></div>
         }
     })
 }
