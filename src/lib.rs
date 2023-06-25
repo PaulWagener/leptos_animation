@@ -6,7 +6,8 @@ use std::{
 };
 
 use leptos::{
-    create_memo, create_signal, log, provide_context, request_animation_frame, store_value,
+    create_memo, create_signal, leptos_dom::helpers::AnimationFrameRequestHandle, log, on_cleanup,
+    provide_context, request_animation_frame, request_animation_frame_with_handle, store_value,
     use_context, ReadSignal, Scope, Signal, SignalGet, SignalSet, StoredValue, WriteSignal,
 };
 pub mod animation_target;
@@ -17,30 +18,34 @@ pub mod tween;
 #[derive(Clone)]
 pub struct AnimationTick;
 
-#[derive(Clone)]
-struct AnimationFrameRequested(bool);
-
 /// The AnimationContext handles updating all animated values and calling request_animation_frame().
 /// It is required to provide one in a parent context before calling create_animated_signal()
 #[derive(Clone)]
 pub struct AnimationContext {
     pub ticks: ReadSignal<AnimationTick>,
     set_ticks: WriteSignal<AnimationTick>,
-    animation_frame_requested: StoredValue<AnimationFrameRequested>,
+    animation_frame_request_handle: StoredValue<Option<AnimationFrameRequestHandle>>,
 }
 
 impl AnimationContext {
     /// Sets up an AnimationContext for this scope and all child scopes
     pub fn provide(cx: Scope) -> AnimationContext {
         let (ticks, set_ticks) = create_signal(cx, AnimationTick);
-        let animation_frame_requested = store_value(cx, AnimationFrameRequested(false));
+        let animation_frame_request_handle =
+            store_value(cx, Option::<AnimationFrameRequestHandle>::None);
 
         let animation_context = AnimationContext {
             ticks,
             set_ticks,
-            animation_frame_requested,
+            animation_frame_request_handle,
         };
         provide_context(cx, animation_context.clone());
+
+        on_cleanup(cx, move || {
+            if let Some(handle) = animation_frame_request_handle.get_value() {
+                handle.cancel()
+            }
+        });
 
         animation_context
     }
@@ -48,17 +53,16 @@ impl AnimationContext {
     /// Manually request a new animation frame. It is normally not necessary to call this
     pub fn request_animation_frame(&self) {
         // Prevent multiple animation frame requests from existing simultaneously
-        if !self.animation_frame_requested.get_value().0 {
-            self.animation_frame_requested
-                .set_value(AnimationFrameRequested(true));
+        if self.animation_frame_request_handle.get_value().is_none() {
+            let this = self.clone();
 
-            let animation_context = self.clone();
-            request_animation_frame(move || {
-                animation_context
-                    .animation_frame_requested
-                    .set_value(AnimationFrameRequested(false));
-                animation_context.set_ticks.set(AnimationTick)
-            });
+            self.animation_frame_request_handle.set_value(Some(
+                request_animation_frame_with_handle(move || {
+                    this.animation_frame_request_handle.set_value(None);
+                    this.set_ticks.set(AnimationTick);
+                })
+                .unwrap(),
+            ));
         }
     }
 }

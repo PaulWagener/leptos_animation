@@ -6,8 +6,6 @@ const DEFAULT_MODE: AnimationMode = AnimationMode::Start;
 const DEFAULT_DURATION: Duration = Duration::new(0, 1000 * 1000 * 1000);
 const DEFAULT_EASING: fn(f64) -> f64 = sine_out;
 
-// Allow users to .into() from a tuple of any combination of duration, easing & mode
-
 impl<T> From<T> for AnimationTarget<T> {
     fn from(target: T) -> Self {
         AnimationTarget {
@@ -18,6 +16,8 @@ impl<T> From<T> for AnimationTarget<T> {
         }
     }
 }
+
+// Allow users to call .into() on a tuple of any combination of duration, easing & mode
 
 impl<T> From<(T, Duration)> for AnimationTarget<T> {
     fn from((target, duration): (T, Duration)) -> Self {
