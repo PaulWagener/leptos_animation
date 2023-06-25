@@ -107,21 +107,24 @@ impl<T, I> Animation<T, I> {
 }
 
 enum AnimationStatus<T, I> {
-    BeforeFirstAnimation,
-    NoAnimation(T),
+    BeforeFirst,
+    Static(T),
     /// The VecDeque is guarenteed to contain atleast one animation. All animations are guarenteed
     /// to be sorted in reverse order of when they started with the most recent one in front and the oldest one in the back
     /// This state does not automatically reset to NoAnimation after the animations are finished
-    RunningAnimations(VecDeque<Animation<T, I>>),
+    Running {
+        to: T,
+        to_i: I,
+        animations: VecDeque<Animation<T, I>>,
+    },
 }
 
 impl<T: Clone, I> AnimationStatus<T, I> {
     fn remove_finished_animations(&mut self) {
-        if let AnimationStatus::RunningAnimations(animations) = self {
-            let to = animations.front().unwrap().to.clone();
+        if let AnimationStatus::Running { to, animations, .. } = self {
             animations.retain(|animation| !animation.is_finished());
             if animations.len() == 0 {
-                *self = AnimationStatus::NoAnimation(to);
+                *self = AnimationStatus::Static(to.clone());
             }
         }
     }
@@ -141,7 +144,7 @@ where
 {
     let context: AnimationContext = use_context(cx)
         .expect("No AnimationContext present, call AnimationContext::new() in a parent scope");
-    let animation_status = store_value(cx, AnimationStatus::<T, I>::BeforeFirstAnimation);
+    let animation_status = store_value(cx, AnimationStatus::<T, I>::BeforeFirst);
 
     #[derive(Clone)]
     struct NeverEqual;
@@ -151,57 +154,69 @@ where
         }
     }
 
-    // Special in-between signal used to update the running_animations that only runs based on source changes
+    // Special in-between signal used to update the animation status that only runs based on source changes
     let animation_changed = create_memo(cx, move |_| {
         let animation_target = source();
 
         animation_status.update_value(|animation_status| {
             animation_status.remove_finished_animations(); // Makes sure that there are no finished animations that mess with the below logic
             match animation_status {
-                // The very first animation can not be played as there is no 'from' value. It results directly in a NoAnimation state.
-                AnimationStatus::BeforeFirstAnimation => {
-                    *animation_status = AnimationStatus::NoAnimation(animation_target.target)
+                // The very first animation can not be played as there is no 'from' value. It results directly in the Static state.
+                AnimationStatus::BeforeFirst => {
+                    *animation_status = AnimationStatus::Static(animation_target.target)
                 }
 
-                // Starting an animation from a NoAnimation state
-                AnimationStatus::NoAnimation(previous) => match animation_target.mode {
+                // Starting an animation from a Static state
+                AnimationStatus::Static(state) => match animation_target.mode {
                     AnimationMode::Start | AnimationMode::StartOrReplace => {
                         let to_value =
                             tween(&animation_target.target, &animation_target.target, 1.0);
-                        *animation_status =
-                            AnimationStatus::RunningAnimations(VecDeque::from([Animation {
-                                from: previous.clone(),
+                        *animation_status = AnimationStatus::Running {
+                            to: animation_target.target.clone(),
+                            to_i: to_value.clone(),
+                            animations: VecDeque::from([Animation {
+                                from: state.clone(),
                                 to: animation_target.target,
                                 to_value,
                                 start: Instant::now(),
                                 duration: animation_target.duration,
                                 easing: animation_target.easing,
-                            }]))
+                            }]),
+                        }
                     }
                     AnimationMode::SnapOrReplace | AnimationMode::Snap => {
-                        *animation_status = AnimationStatus::NoAnimation(animation_target.target)
+                        *animation_status = AnimationStatus::Static(animation_target.target)
                     }
                 },
                 // Start an animation from a running state
-                AnimationStatus::RunningAnimations(animations) => match animation_target.mode {
+                AnimationStatus::Running {
+                    to,
+                    to_i,
+                    animations,
+                } => match animation_target.mode {
                     AnimationMode::Start => {
-                        let to_value =
+                        let new_to_i =
                             tween(&animation_target.target, &animation_target.target, 1.0);
+
                         animations.push_front(Animation {
-                            from: animations.front().unwrap().to.clone(),
-                            to: animation_target.target,
-                            to_value,
+                            from: to.clone(),
+                            to: animation_target.target.clone(),
+                            to_value: new_to_i.clone(),
                             start: Instant::now(),
                             duration: animation_target.duration,
                             easing: animation_target.easing,
-                        })
+                        });
+                        *to = animation_target.target;
+                        *to_i = new_to_i;
                     }
                     // This arm can only be reached when there are still live animations, so we perform the 'replace' operation
                     AnimationMode::StartOrReplace | AnimationMode::SnapOrReplace => {
-                        animations.front_mut().unwrap().to = animation_target.target
+                        *to = animation_target.target.clone();
+                        *to_i = tween(&animation_target.target, &animation_target.target, 1.0);
+                        animations.front_mut().unwrap().to = animation_target.target;
                     }
                     AnimationMode::Snap => {
-                        *animation_status = AnimationStatus::NoAnimation(animation_target.target)
+                        *animation_status = AnimationStatus::Static(animation_target.target)
                     }
                 },
             }
@@ -215,23 +230,22 @@ where
         animation_status
             .update_value(|animation_status| animation_status.remove_finished_animations());
         let i: I = animation_status.with_value(|animation_status| match animation_status {
-            AnimationStatus::BeforeFirstAnimation => unreachable!(""),
-            AnimationStatus::NoAnimation(value) => tween(&value, &value, 1.0),
-            AnimationStatus::RunningAnimations(animations) => {
+            AnimationStatus::BeforeFirst => unreachable!(""),
+            AnimationStatus::Static(state) => tween(state, state, 1.0),
+            AnimationStatus::Running {
+                animations, to_i, ..
+            } => {
                 // Keep this signal updated in the animation loop
                 context.ticks.get();
                 context.request_animation_frame();
 
                 // Add all animation results to a single value
-                animations.iter().fold(
-                    animations.front().unwrap().to_value.clone(),
-                    |acc, animation| {
-                        let animation_value =
-                            tween(&animation.from, &animation.to, animation.progress());
+                animations.iter().fold(to_i.clone(), |acc, animation| {
+                    let animation_value =
+                        tween(&animation.from, &animation.to, animation.progress());
 
-                        acc + (animation_value - animation.to_value.clone())
-                    },
-                )
+                    acc + (animation_value - animation.to_value.clone())
+                })
             }
         });
         i
