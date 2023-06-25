@@ -6,9 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos = { git = "https://github.com/leptos-rs/leptos.git", rev = "c55067a", features = [
-    "stable",
-] }
+leptos = { version = "0.3.1", features = ["stable"] }
+leptos_router = { version = "0.3.1", features = ["stable", "csr"] }
 wasm-bindgen = "0.2.87"
 web-sys = { version = "0.3.64", features = ["CanvasRenderingContext2d"] }
 leptos_animation = { path = ".." }

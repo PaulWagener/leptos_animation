@@ -187,7 +187,6 @@ pub fn Full(cx: Scope) -> impl IntoView {
     // Everything below this line is UI boilerplate
     view! { cx,
         <div>
-            <h1>"Animation Demo"</h1>
             <main>
                 <div class="options">
                     <fieldset>

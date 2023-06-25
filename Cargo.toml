@@ -6,8 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos = { git = "https://github.com/leptos-rs/leptos.git", rev = "c55067a", features = [
-    "stable",
-] }
-
+leptos = "0.3.1"
 instant = { version = "0.1.12", features = ["wasm-bindgen"] }
