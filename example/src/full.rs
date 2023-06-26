@@ -72,10 +72,10 @@ enum MouseMoveAnimationMode {
 impl From<Easing> for leptos_animation::Easing {
     fn from(value: Easing) -> Self {
         match value {
-            Easing::Linear => easing::linear,
-            Easing::Smooth => easing::cubic_out,
-            Easing::Overshoot => easing::back_out,
-            Easing::Elastic => easing::elastic_out,
+            Easing::Linear => easing::LINEAR,
+            Easing::Smooth => easing::CUBIC_OUT,
+            Easing::Overshoot => easing::BACK_OUT,
+            Easing::Elastic => easing::ELASTIC_OUT,
         }
     }
 }
@@ -135,10 +135,10 @@ pub fn Full(cx: Scope) -> impl IntoView {
                 target,
                 duration: duration.get_untracked().into(),
                 easing: match easing.get_untracked() {
-                    Easing::Linear => easing::linear,
-                    Easing::Smooth => easing::cubic_in_out,
-                    Easing::Overshoot => easing::back_in_out,
-                    Easing::Elastic => easing::elastic_out,
+                    Easing::Linear => easing::LINEAR,
+                    Easing::Smooth => easing::CUBIC_IN_OUT,
+                    Easing::Overshoot => easing::BACK_IN_OUT,
+                    Easing::Elastic => easing::ELASTIC_IN_OUT,
                 },
                 mode,
             }

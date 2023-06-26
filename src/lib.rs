@@ -139,7 +139,7 @@ impl<T: Clone, I> AnimationStatus<T, I> {
             AnimationStatus::Running { to, animations, .. } => {
                 animations.retain(|animation| !animation.is_finished());
                 if animations.len() == 0 {
-                    *self = AnimationStatus::Static(to.clone());
+                    *self = AnimationStatus::Snap(to.clone());
                 }
             }
         }

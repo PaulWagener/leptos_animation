@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use crate::{easing::sine_out, AnimationMode, AnimationTarget, Easing};
+use crate::{easing::SINE_OUT, AnimationMode, AnimationTarget, Easing};
 
 const DEFAULT_MODE: AnimationMode = AnimationMode::Start;
 const DEFAULT_DURATION: Duration = Duration::new(0, 1000 * 1000 * 1000);
-const DEFAULT_EASING: fn(f64) -> f64 = sine_out;
+const DEFAULT_EASING: fn(f64) -> f64 = SINE_OUT;
 
 impl<T> From<T> for AnimationTarget<T> {
     fn from(target: T) -> Self {
@@ -29,6 +29,7 @@ impl<T> From<(T, Duration)> for AnimationTarget<T> {
         }
     }
 }
+
 impl<T> From<(T, Easing)> for AnimationTarget<T> {
     fn from((target, easing): (T, Easing)) -> Self {
         AnimationTarget {
@@ -39,6 +40,7 @@ impl<T> From<(T, Easing)> for AnimationTarget<T> {
         }
     }
 }
+
 impl<T> From<(T, AnimationMode)> for AnimationTarget<T> {
     fn from((target, mode): (T, AnimationMode)) -> Self {
         AnimationTarget {
@@ -49,6 +51,7 @@ impl<T> From<(T, AnimationMode)> for AnimationTarget<T> {
         }
     }
 }
+
 impl<T> From<(T, Duration, Easing)> for AnimationTarget<T> {
     fn from((target, duration, easing): (T, Duration, Easing)) -> Self {
         AnimationTarget {
@@ -59,6 +62,7 @@ impl<T> From<(T, Duration, Easing)> for AnimationTarget<T> {
         }
     }
 }
+
 impl<T> From<(T, Easing, AnimationMode)> for AnimationTarget<T> {
     fn from((target, easing, mode): (T, Easing, AnimationMode)) -> Self {
         AnimationTarget {
@@ -69,6 +73,7 @@ impl<T> From<(T, Easing, AnimationMode)> for AnimationTarget<T> {
         }
     }
 }
+
 impl<T> From<(T, Duration, AnimationMode)> for AnimationTarget<T> {
     fn from((target, duration, mode): (T, Duration, AnimationMode)) -> Self {
         AnimationTarget {
