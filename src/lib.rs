@@ -5,38 +5,29 @@ use std::{
     time::Duration,
 };
 
-use leptos::{
-    create_memo, create_signal, leptos_dom::helpers::AnimationFrameRequestHandle, log, on_cleanup,
-    provide_context, request_animation_frame, request_animation_frame_with_handle, store_value,
-    use_context, ReadSignal, Scope, Signal, SignalGet, SignalSet, StoredValue, WriteSignal,
-};
+use leptos::{create_effect, create_memo, create_trigger, leptos_dom::helpers::AnimationFrameRequestHandle, on_cleanup, provide_context, request_animation_frame_with_handle, store_value, use_context, Scope, Signal, SignalGet, StoredValue, Trigger, Memo, SignalWith};
+
 pub mod animation_target;
 pub mod easing;
 pub mod tween;
 
-/// The AnimationTick is a placeholder value for use in a special signal that fires on each tick
-#[derive(Clone)]
-pub struct AnimationTick;
-
 /// The AnimationContext handles updating all animated values and calling request_animation_frame().
 /// It is required to provide one in a parent context before calling create_animated_signal()
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct AnimationContext {
-    pub ticks: ReadSignal<AnimationTick>,
-    set_ticks: WriteSignal<AnimationTick>,
+    pub ticks: Trigger,
     animation_frame_request_handle: StoredValue<Option<AnimationFrameRequestHandle>>,
 }
 
 impl AnimationContext {
     /// Sets up an AnimationContext for this scope and all child scopes
     pub fn provide(cx: Scope) -> AnimationContext {
-        let (ticks, set_ticks) = create_signal(cx, AnimationTick);
+        let ticks = create_trigger(cx);
         let animation_frame_request_handle =
             store_value(cx, Option::<AnimationFrameRequestHandle>::None);
 
         let animation_context = AnimationContext {
             ticks,
-            set_ticks,
             animation_frame_request_handle,
         };
         provide_context(cx, animation_context.clone());
@@ -59,9 +50,9 @@ impl AnimationContext {
             self.animation_frame_request_handle.set_value(Some(
                 request_animation_frame_with_handle(move || {
                     this.animation_frame_request_handle.set_value(None);
-                    this.set_ticks.set(AnimationTick);
+                    this.ticks.notify();
                 })
-                .unwrap(),
+                    .unwrap(),
             ));
         }
     }
@@ -95,11 +86,12 @@ pub type Easing = fn(f64) -> f64;
 struct Animation<T, I> {
     from: T,
     to: T,
-    to_value: I,
+    to_i: I,
     start: Instant,
     duration: Duration,
     easing: Easing,
 }
+
 impl<T, I> Animation<T, I> {
     fn is_finished(&self) -> bool {
         Instant::now() > self.start + self.duration
@@ -139,27 +131,19 @@ pub fn create_animated_signal<T, I>(
     source: impl Fn() -> AnimationTarget<T> + 'static,
     tween: fn(&T, &T, f64) -> I,
 ) -> Signal<I>
-where
-    T: 'static,
-    T: Clone, //where V: Clone, I: PartialEq {
-    I: Clone,
-    I: Sub<I, Output = I>,
-    I: Add<I, Output = I>,
+    where
+        T: 'static,
+        T: Clone, //where V: Clone, I: PartialEq {
+        I: Clone,
+        I: Sub<I, Output=I>,
+        I: Add<I, Output=I>,
 {
     let context: AnimationContext = use_context(cx)
         .expect("No AnimationContext present, call AnimationContext::new() in a parent scope");
     let animation_status = store_value(cx, AnimationStatus::<T, I>::BeforeFirst);
 
-    #[derive(Clone)]
-    struct NeverEqual;
-    impl PartialEq for NeverEqual {
-        fn eq(&self, _: &Self) -> bool {
-            false
-        }
-    }
-
-    // Special in-between signal used to update the animation status that only runs based on source changes
-    let animation_changed = create_memo(cx, move |_| {
+    // TODO: update doc: Special in-between signal used to update the animation status that only runs based on source changes
+    create_effect(cx, move |_| {
         let animation_target = source();
 
         animation_status.update_value(|animation_status| {
@@ -173,15 +157,15 @@ where
                 // Starting an animation from a Static state
                 AnimationStatus::Static(state) => match animation_target.mode {
                     AnimationMode::Start | AnimationMode::StartOrReplace => {
-                        let to_value =
+                        let to_i =
                             tween(&animation_target.target, &animation_target.target, 1.0);
                         *animation_status = AnimationStatus::Running {
                             to: animation_target.target.clone(),
-                            to_i: to_value.clone(),
+                            to_i: to_i.clone(),
                             animations: VecDeque::from([Animation {
                                 from: state.clone(),
                                 to: animation_target.target,
-                                to_value,
+                                to_i,
                                 start: Instant::now(),
                                 duration: animation_target.duration,
                                 easing: animation_target.easing,
@@ -205,7 +189,7 @@ where
                         animations.push_front(Animation {
                             from: to.clone(),
                             to: animation_target.target.clone(),
-                            to_value: new_to_i.clone(),
+                            to_i: new_to_i.clone(),
                             start: Instant::now(),
                             duration: animation_target.duration,
                             easing: animation_target.easing,
@@ -225,14 +209,41 @@ where
                 },
             }
         });
-        NeverEqual
+        context.request_animation_frame();
+    });
+
+    // This is a crude way to filter signals
+    enum SignalUpdate {
+        Ignore,
+        Update,
+    }
+    impl PartialEq for SignalUpdate {
+        fn eq(&self, other: &Self) -> bool {
+            match other {
+                SignalUpdate::Ignore => true,
+                SignalUpdate::Update => false
+            }
+        }
+    }
+
+    /// Internal signal that fires on animation ticks while 
+    let animation_tick = create_memo(cx, move |_| {
+        context.ticks.track(); // 
+
+        animation_status.update_value(|animation_status| {
+            animation_status.remove_finished_animations();
+        });
+        animation_status.with_value(|animation_status| {
+            match animation_status {
+                AnimationStatus::BeforeFirst | AnimationStatus::Static(_) => SignalUpdate::Ignore,
+                AnimationStatus::Running { .. } => SignalUpdate::Update,
+            }
+        })
     });
 
     Signal::derive(cx, move || {
-        animation_changed.get();
-
-        animation_status
-            .update_value(|animation_status| animation_status.remove_finished_animations());
+        animation_tick.track();
+        
         let i: I = animation_status.with_value(|animation_status| match animation_status {
             AnimationStatus::BeforeFirst => unreachable!(""),
             AnimationStatus::Static(state) => tween(state, state, 1.0),
@@ -240,7 +251,7 @@ where
                 animations, to_i, ..
             } => {
                 // Keep this signal updated in the animation loop
-                context.ticks.get();
+                context.ticks.track();
                 context.request_animation_frame();
 
                 // Add all animation results to a single value
@@ -248,7 +259,7 @@ where
                     let animation_value =
                         tween(&animation.from, &animation.to, animation.progress());
 
-                    acc + (animation_value - animation.to_value.clone())
+                    acc + (animation_value - animation.to_i.clone())
                 })
             }
         });
