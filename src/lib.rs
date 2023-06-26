@@ -156,7 +156,6 @@ pub fn create_animated_signal<T, I>(
         T: Clone, //where V: Clone, I: PartialEq {
         I: Clone,
         I: Sub<I, Output=I>,
-        I: Add<I, Output=I>,
 {
     let context: AnimationContext = use_context(cx)
         .expect("No AnimationContext present, call AnimationContext::provide() in a parent scope");
@@ -252,7 +251,7 @@ pub fn create_animated_signal<T, I>(
     // TODO doc: Internal signal that fires on animation ticks while
     let animation_tick = create_memo(cx, move |_| {
         context.ticks.track();
-        
+
         let was_snap = animation_status.with_value(|animation_status| {
             matches!(animation_status, AnimationStatus::Snap(_))
         });
@@ -289,7 +288,7 @@ pub fn create_animated_signal<T, I>(
                     let animation_value =
                         tween(&animation.from, &animation.to, animation.progress());
 
-                    acc + (animation_value - animation.to_i.clone())
+                    acc - (animation.to_i.clone() - animation_value)
                 })
             }
         });

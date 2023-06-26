@@ -1,4 +1,4 @@
-use derive_more::{Add, Mul, Sub};
+use derive_more::{Mul, Sub, Add};
 use leptos::html::Canvas;
 use leptos::*;
 use leptos_animation::*;
@@ -7,7 +7,7 @@ use std::f64::consts::PI;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::CanvasRenderingContext2d;
 
-#[derive(Clone, Add, Sub)]
+#[derive(Clone, Sub)]
 struct Color {
     red: i16,
     green: i16,
@@ -99,7 +99,7 @@ pub fn Full(cx: Scope) -> impl IntoView {
     // Animation mode, easings & durations are normally hardcoded, they are only signals here for demo purposes
     let (duration, set_duration) = create_signal(cx, Duration::Normal);
     let (easing, set_easing) = create_signal(cx, Easing::Smooth);
-    let (mode, set_mode) = create_signal(cx, MouseMoveAnimationMode::Snap);
+    let (mode, set_mode) = create_signal(cx, MouseMoveAnimationMode::None);
 
     // Animated derived signals
     let size = create_animated_signal(

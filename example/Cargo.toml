@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+ 
 [dependencies]
 leptos = { version = "0.3.1", features = ["stable"] }
 leptos_router = { version = "0.3.1", features = ["stable", "csr"] }
@@ -16,3 +16,4 @@ derive_more = "0.99.17"
 console_error_panic_hook = "0.1.7"
 log = "0.4.19"
 wasm-logger = "0.2.0"
+levenshtein-diff = "0.2.4"
