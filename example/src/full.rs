@@ -61,6 +61,14 @@ enum Easing {
     Elastic,
 }
 
+#[derive(Clone)]
+enum MouseMoveAnimationMode {
+    None,
+    StartOrReplace,
+    SnapOrReplace,
+    Snap,
+}
+
 impl From<Easing> for leptos_animation::Easing {
     fn from(value: Easing) -> Self {
         match value {
@@ -85,11 +93,13 @@ pub fn Full(cx: Scope) -> impl IntoView {
     );
     let (target_size, set_target_size) = create_signal(cx, Size::Small);
     let (target_rotation, set_target_rotation) = create_signal(cx, 0.0);
-    let (target_position, set_target_position) = create_signal(cx, Position { x: 200.0, y: 200.0 });
+    let (target_position, set_target_position) =
+        create_signal(cx, (Position { x: 200.0, y: 200.0 }, AnimationMode::Snap));
 
-    // Animation easings & durations are normally hardcoded, they are only signals here for demo purposes
+    // Animation mode, easings & durations are normally hardcoded, they are only signals here for demo purposes
     let (duration, set_duration) = create_signal(cx, Duration::Normal);
     let (easing, set_easing) = create_signal(cx, Easing::Smooth);
+    let (mode, set_mode) = create_signal(cx, MouseMoveAnimationMode::Snap);
 
     // Animated derived signals
     let size = create_animated_signal(
@@ -119,16 +129,19 @@ pub fn Full(cx: Scope) -> impl IntoView {
 
     let position = create_animated_signal(
         cx,
-        move || AnimationTarget {
-            target: target_position.get(),
-            duration: duration.get_untracked().into(),
-            easing: match easing.get_untracked() {
-                Easing::Linear => easing::linear,
-                Easing::Smooth => easing::cubic_in_out,
-                Easing::Overshoot => easing::back_in_out,
-                Easing::Elastic => easing::elastic_out,
-            },
-            mode: AnimationMode::Start,
+        move || {
+            let (target, mode) = target_position.get();
+            AnimationTarget {
+                target,
+                duration: duration.get_untracked().into(),
+                easing: match easing.get_untracked() {
+                    Easing::Linear => easing::linear,
+                    Easing::Smooth => easing::cubic_in_out,
+                    Easing::Overshoot => easing::back_in_out,
+                    Easing::Elastic => easing::elastic_out,
+                },
+                mode,
+            }
         },
         tween::default(),
     );
@@ -356,6 +369,37 @@ pub fn Full(cx: Scope) -> impl IntoView {
                         />
                         <label for="easing_elastic">"Elastic"</label>
                     </fieldset>
+                    <fieldset>
+                        <legend>"Animation mode (mouse move)"</legend>
+                        <input
+                            type="radio"
+                            id="mode_none"
+                            on:input=move |_| { set_mode.set(MouseMoveAnimationMode::None) }
+                            prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::None) }
+                        />
+                        <label for="mode_none">"None"</label>
+                        <input
+                            type="radio"
+                            id="mode_start_or_replace"
+                            on:input=move |_| { set_mode.set(MouseMoveAnimationMode::StartOrReplace) }
+                            prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::StartOrReplace) }
+                        />
+                        <label for="mode_start_or_replace">"StartOrReplace"</label>
+                        <input
+                            type="radio"
+                            id="mode_snap_or_replace"
+                            on:input=move |_| { set_mode.set(MouseMoveAnimationMode::SnapOrReplace) }
+                            prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::SnapOrReplace) }
+                        />
+                        <label for="mode_snap_or_replace">"SnapOrReplace"</label>
+                        <input
+                            type="radio"
+                            id="mode_snap"
+                            on:input=move |_| { set_mode.set(MouseMoveAnimationMode::Snap) }
+                            prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::Snap) }
+                        />
+                        <label for="mode_snap">"Snap"</label>
+                    </fieldset>
                 </div>
                 <div class="canvas">
                     <canvas
@@ -363,10 +407,34 @@ pub fn Full(cx: Scope) -> impl IntoView {
                         height="800"
                         _ref=canvas_ref
                         on:mousedown=move |e| {
-                            set_target_position.set(Position { x: e.offset_x() as f64, y: e.offset_y() as f64});
+                            set_target_position
+                                .set((
+                                    Position {
+                                        x: e.offset_x() as f64,
+                                        y: e.offset_y() as f64,
+                                    },
+                                    AnimationMode::Start,
+                                ));
+                        }
+                        on:mousemove=move |e| {
+                            let position = Position {
+                                x: e.offset_x() as f64,
+                                y: e.offset_y() as f64,
+                            };
+                            match mode.get_untracked() {
+                                MouseMoveAnimationMode::None => {}
+                                MouseMoveAnimationMode::StartOrReplace => {
+                                    set_target_position.set((position, AnimationMode::StartOrReplace))
+                                }
+                                MouseMoveAnimationMode::SnapOrReplace => {
+                                    set_target_position.set((position, AnimationMode::SnapOrReplace))
+                                }
+                                MouseMoveAnimationMode::Snap => {
+                                    set_target_position.set((position, AnimationMode::Snap))
+                                }
+                            }
                         }
                     ></canvas>
-
                 </div>
             </main>
         </div>

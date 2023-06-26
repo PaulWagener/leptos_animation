@@ -5,7 +5,21 @@ use std::{
     time::Duration,
 };
 
-use leptos::{create_effect, create_memo, create_trigger, leptos_dom::helpers::AnimationFrameRequestHandle, on_cleanup, provide_context, request_animation_frame_with_handle, store_value, use_context, Scope, Signal, SignalGet, StoredValue, Trigger, Memo, SignalWith};
+use leptos::{log, Signal};
+use leptos::Scope;
+use leptos::use_context;
+use leptos::store_value;
+use leptos::request_animation_frame_with_handle;
+use leptos::provide_context;
+use leptos::on_cleanup;
+use leptos::leptos_dom::helpers::AnimationFrameRequestHandle;
+use leptos::create_trigger;
+use leptos::create_memo;
+use leptos::create_effect;
+use leptos::StoredValue;
+use leptos::Trigger;
+
+use leptos::SignalWith;
 
 pub mod animation_target;
 pub mod easing;
@@ -73,6 +87,7 @@ pub struct AnimationTarget<T> {
     pub mode: AnimationMode,
 }
 
+#[derive(Clone)]
 pub enum AnimationMode {
     /// Starts a new animation on top
     Start,
@@ -103,9 +118,10 @@ impl<T, I> Animation<T, I> {
 }
 
 enum AnimationStatus<T, I> {
-    BeforeFirst,
     Static(T),
-    /// The VecDeque is guarenteed to contain atleast one animation. All animations are guarenteed
+    // Final frame of animation or Snap mode
+    Snap(T),
+    /// The VecDeque is guaranteed to contain at least one animation. All animations are guaranteed
     /// to be sorted in reverse order of when they started with the most recent one in front and the oldest one in the back
     /// This state does not automatically reset to NoAnimation after the animations are finished
     Running {
@@ -117,10 +133,14 @@ enum AnimationStatus<T, I> {
 
 impl<T: Clone, I> AnimationStatus<T, I> {
     fn remove_finished_animations(&mut self) {
-        if let AnimationStatus::Running { to, animations, .. } = self {
-            animations.retain(|animation| !animation.is_finished());
-            if animations.len() == 0 {
-                *self = AnimationStatus::Static(to.clone());
+        match self {
+            AnimationStatus::Static(_) => {}
+            AnimationStatus::Snap(value) => { *self = AnimationStatus::Static(value.clone()) }
+            AnimationStatus::Running { to, animations, .. } => {
+                animations.retain(|animation| !animation.is_finished());
+                if animations.len() == 0 {
+                    *self = AnimationStatus::Static(to.clone());
+                }
             }
         }
     }
@@ -139,23 +159,24 @@ pub fn create_animated_signal<T, I>(
         I: Add<I, Output=I>,
 {
     let context: AnimationContext = use_context(cx)
-        .expect("No AnimationContext present, call AnimationContext::new() in a parent scope");
-    let animation_status = store_value(cx, AnimationStatus::<T, I>::BeforeFirst);
+        .expect("No AnimationContext present, call AnimationContext::provide() in a parent scope");
+    let animation_status = store_value(cx, AnimationStatus::<T, I>::Static(source().target));
 
     // TODO: update doc: Special in-between signal used to update the animation status that only runs based on source changes
-    create_effect(cx, move |_| {
+    create_effect(cx, move |prev| {
         let animation_target = source();
+
+        // Don't start an animation the very first run
+        if prev.is_none() {
+            return;
+        }
 
         animation_status.update_value(|animation_status| {
             animation_status.remove_finished_animations(); // Makes sure that there are no finished animations that mess with the below logic
             match animation_status {
-                // The very first animation can not be played as there is no 'from' value. It results directly in the Static state.
-                AnimationStatus::BeforeFirst => {
-                    *animation_status = AnimationStatus::Static(animation_target.target)
-                }
 
                 // Starting an animation from a Static state
-                AnimationStatus::Static(state) => match animation_target.mode {
+                AnimationStatus::Static(state) | AnimationStatus::Snap(state) => match animation_target.mode {
                     AnimationMode::Start | AnimationMode::StartOrReplace => {
                         let to_i =
                             tween(&animation_target.target, &animation_target.target, 1.0);
@@ -173,7 +194,7 @@ pub fn create_animated_signal<T, I>(
                         }
                     }
                     AnimationMode::SnapOrReplace | AnimationMode::Snap => {
-                        *animation_status = AnimationStatus::Static(animation_target.target)
+                        *animation_status = AnimationStatus::Snap(animation_target.target)
                     }
                 },
                 // Start an animation from a running state
@@ -201,10 +222,12 @@ pub fn create_animated_signal<T, I>(
                     AnimationMode::StartOrReplace | AnimationMode::SnapOrReplace => {
                         *to = animation_target.target.clone();
                         *to_i = tween(&animation_target.target, &animation_target.target, 1.0);
-                        animations.front_mut().unwrap().to = animation_target.target;
+                        let mut last_animation = animations.front_mut().unwrap();
+                        last_animation.to = animation_target.target;
+                        last_animation.to_i = to_i.clone();
                     }
                     AnimationMode::Snap => {
-                        *animation_status = AnimationStatus::Static(animation_target.target)
+                        *animation_status = AnimationStatus::Snap(animation_target.target)
                     }
                 },
             }
@@ -226,32 +249,39 @@ pub fn create_animated_signal<T, I>(
         }
     }
 
-    /// Internal signal that fires on animation ticks while 
+    // TODO doc: Internal signal that fires on animation ticks while
     let animation_tick = create_memo(cx, move |_| {
-        context.ticks.track(); // 
+        context.ticks.track();
+        
+        let was_snap = animation_status.with_value(|animation_status| {
+            matches!(animation_status, AnimationStatus::Snap(_))
+        });
 
         animation_status.update_value(|animation_status| {
             animation_status.remove_finished_animations();
         });
-        animation_status.with_value(|animation_status| {
-            match animation_status {
-                AnimationStatus::BeforeFirst | AnimationStatus::Static(_) => SignalUpdate::Ignore,
-                AnimationStatus::Running { .. } => SignalUpdate::Update,
-            }
-        })
+
+        if was_snap {
+            SignalUpdate::Update
+        } else {
+            animation_status.with_value(|animation_status| {
+                match animation_status {
+                    AnimationStatus::Static(_) => SignalUpdate::Ignore,
+                    _ => SignalUpdate::Update,
+                }
+            })
+        }
     });
 
     Signal::derive(cx, move || {
         animation_tick.track();
-        
+
         let i: I = animation_status.with_value(|animation_status| match animation_status {
-            AnimationStatus::BeforeFirst => unreachable!(""),
-            AnimationStatus::Static(state) => tween(state, state, 1.0),
+            AnimationStatus::Static(state) | AnimationStatus::Snap(state) => tween(state, state, 1.0),
             AnimationStatus::Running {
                 animations, to_i, ..
             } => {
                 // Keep this signal updated in the animation loop
-                context.ticks.track();
                 context.request_animation_frame();
 
                 // Add all animation results to a single value
