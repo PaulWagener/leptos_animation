@@ -19,6 +19,7 @@ fn main() {
     wasm_logger::init(wasm_logger::Config::default());
 
     mount_to_body(|cx| {
+        // Initialize a single AnimationContext for all three demo's
         AnimationContext::provide(cx);
 
         view! { cx,

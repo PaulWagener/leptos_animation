@@ -3,15 +3,13 @@ use leptos_animation::*;
 
 #[component]
 pub fn Simple(cx: Scope) -> impl IntoView {
-    // create a reactive signal with the initial value
-    let (value, set_value) = create_signal(cx, 0);
+    // Note that the necessary AnimatedContext is initialized in main.rs in this demo
 
-    let animated_value =
-        create_animated_signal(cx, move || (value.get() as f64).into(), tween::default());
+    let (value, set_value) = create_signal(cx, 0.0);
 
-    // create event handlers for our buttons
-    // note that `value` and `set_value` are `Copy`, so it's super easy to move them into closures
-    let clear = move |_| set_value.set(0);
+    let animated_value = create_animated_signal(cx, move || value.get().into(), tween::default());
+
+    let clear = move |_| set_value.set(0.0);
     let decrement = move |_| set_value.update(|value| *value -= 1);
     let increment = move |_| set_value.update(|value| *value += 1);
 
