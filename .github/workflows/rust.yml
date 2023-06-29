@@ -27,7 +27,7 @@ jobs:
         version: 'latest'
     
     - name: Add wasm32-unknown-unknown
-        run: rustup target add wasm32-unknown-unknown
+      run: rustup target add wasm32-unknown-unknown
     
     - run: trunk build example/index.html --release
 
