@@ -26,25 +26,25 @@ fn main() {
             <Router>
                 <h1>"Animation Demo"</h1>
                 <nav>
-                    <a href="/">"Full"</a>
-                    <a href="/simple">"Simple"</a>
-                    <a href="/text">"Text"</a>
+                    <a href="/leptos_animation">"Full"</a>
+                    <a href="/leptos_animation/simple">"Simple"</a>
+                    <a href="/leptos_animation/text">"Text"</a>
                 </nav>
                 <Routes>
                     <Route
-                        path="/"
+                        path="/leptos_animation"
                         view=|cx| {
                             view! { cx, <Full/> }
                         }
                     />
                     <Route
-                        path="/simple"
+                        path="/leptos_animation/simple"
                         view=|cx| {
                             view! { cx, <Simple/> }
                         }
                     />
                     <Route
-                        path="/text"
+                        path="/leptos_animation/text"
                         view=|cx| {
                             view! { cx, <Text/> }
                         }
