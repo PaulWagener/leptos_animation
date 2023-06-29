@@ -363,7 +363,7 @@ pub fn Full(cx: Scope) -> impl IntoView {
             </div>
             <a
                 class="source"
-                href="https://github.com/PaulWagener/leptos_animation/blob/main/example/src/full.rs"
+                href="https://github.com/PaulWagener/leptos_animation/blob/master/example/src/full.rs"
             >
                 "View Source"
             </a>

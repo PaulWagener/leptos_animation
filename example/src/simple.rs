@@ -21,7 +21,7 @@ pub fn Simple(cx: Scope) -> impl IntoView {
             <div>"Value: " {value} <br/> "Animated value: " {animated_value}</div>
             <a
                 class="source"
-                href="https://github.com/PaulWagener/leptos_animation/blob/main/example/src/simple.rs"
+                href="https://github.com/PaulWagener/leptos_animation/blob/master/example/src/simple.rs"
             >
                 "View Source"
             </a>

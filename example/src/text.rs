@@ -29,7 +29,7 @@ pub fn Text(cx: Scope) -> impl IntoView {
             <textarea prop:value=move || animated_text.get().0></textarea>
             <a
                 class="source"
-                href="https://github.com/PaulWagener/leptos_animation/blob/main/example/src/text.rs"
+                href="https://github.com/PaulWagener/leptos_animation/blob/master/example/src/text.rs"
             >
                 "View Source"
             </a>
