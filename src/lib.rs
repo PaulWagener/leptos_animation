@@ -363,7 +363,7 @@ pub fn create_animated_signal<T, I>(
                     AnimationMode::ReplaceOrStart | AnimationMode::ReplaceOrSnap => {
                         *to = animation_target.target.clone();
                         *to_i = tween(&animation_target.target, &animation_target.target, 1.0);
-                        let mut last_animation = animations.front_mut().unwrap();
+                        let last_animation = animations.front_mut().unwrap();
                         last_animation.to = animation_target.target;
                         last_animation.to_i = to_i.clone();
                     }

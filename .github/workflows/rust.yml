@@ -21,10 +21,11 @@ jobs:
       with:
         toolchain: nightly
         override: true
-    - name: Build
-      uses: actions-rs/cargo@v1
+    - uses: jetli/trunk-action@v0.4.0
       with:
-        command: build
+        version: 'latest'
+    - run: trunk build example/index.html --release
+
     - name: Test
       uses: actions-rs/cargo@v1
       with:
