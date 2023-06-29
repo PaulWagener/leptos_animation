@@ -32,9 +32,9 @@ jobs:
       run: trunk build example/index.html --release
 
     - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
-        with:
-          path: ./example/dist
+      uses: actions/upload-pages-artifact@v1
+      with:
+        path: ./example/dist
 
   deploy:
     environment:
