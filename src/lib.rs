@@ -1,47 +1,61 @@
 use instant::Instant;
 use std::{
     collections::VecDeque,
-    ops::{Add, Sub},
+    ops::Sub,
     time::Duration,
 };
+use std::ops::{Add, Mul};
 
-use leptos::{log, Signal};
-use leptos::Scope;
-use leptos::use_context;
-use leptos::store_value;
-use leptos::request_animation_frame_with_handle;
-use leptos::provide_context;
-use leptos::on_cleanup;
-use leptos::leptos_dom::helpers::AnimationFrameRequestHandle;
-use leptos::create_trigger;
-use leptos::create_memo;
-use leptos::create_effect;
-use leptos::StoredValue;
-use leptos::Trigger;
 
-use leptos::SignalWith;
+use leptos::{
+    store_value,
+    use_context,
+    Scope,
+    Signal,
+    request_animation_frame_with_handle,
+    provide_context,
+    on_cleanup,
+    leptos_dom::helpers::AnimationFrameRequestHandle,
+    create_trigger,
+    create_memo,
+    create_effect,
+    StoredValue,
+    Trigger,
+    SignalWith,
+};
 
 pub mod animation_target;
 pub mod easing;
-pub mod tween;
 
-/// The AnimationContext handles updating all animated values and calling request_animation_frame().
-/// It is required to provide one in a parent context before calling create_animated_signal()
+
+/// The `AnimationContext` handles updating all animated values and calls to `window.request_animation_frame()`.
+/// It is required to provide one in a parent context before calling [`create_animated_signal()`]
+/// ```
+/// # use leptos::*;
+/// # use leptos_animation::AnimationContext;
+/// # let _ = create_scope(create_runtime(), |cx| {
+///  AnimationContext::provide(cx);
+/// # });
+/// ```
 #[derive(Copy, Clone)]
 pub struct AnimationContext {
-    pub ticks: Trigger,
+    /// The `animation_frame` trigger is the root for all animation updates. It is triggered on
+    /// the `window.request_animation_frame()` callback. It is not necessary to notify or track
+    /// this trigger yourself, it will happen automatically when animated signals exist.
+    pub animation_frame: Trigger,
     animation_frame_request_handle: StoredValue<Option<AnimationFrameRequestHandle>>,
 }
 
 impl AnimationContext {
-    /// Sets up an AnimationContext for this scope and all child scopes
+    /// Sets up an AnimationContext for this scope and all child scopes. For normal use you only
+    /// need to call this once in a root component of the application.
     pub fn provide(cx: Scope) -> AnimationContext {
-        let ticks = create_trigger(cx);
+        let animation_frame = create_trigger(cx);
         let animation_frame_request_handle =
             store_value(cx, Option::<AnimationFrameRequestHandle>::None);
 
         let animation_context = AnimationContext {
-            ticks,
+            animation_frame,
             animation_frame_request_handle,
         };
         provide_context(cx, animation_context.clone());
@@ -55,7 +69,12 @@ impl AnimationContext {
         animation_context
     }
 
-    /// Manually request a new animation frame. It is normally not necessary to call this
+    /// Manually request a new animation frame. It will result in a `notify()` on the 
+    /// `AnimationContext.animation_frame` trigger which updates all running animations
+    /// simultaneously. Repeated calls will result in only a single animation frame request.
+    ///
+    /// Animated signals will call this automatically when they are running, it is not necessary
+    /// to call this function unless you are doing something custom. 
     pub fn request_animation_frame(&self) {
         // Prevent multiple animation frame requests from existing simultaneously
         if self.animation_frame_request_handle.get_value().is_none() {
@@ -64,7 +83,7 @@ impl AnimationContext {
             self.animation_frame_request_handle.set_value(Some(
                 request_animation_frame_with_handle(move || {
                     this.animation_frame_request_handle.set_value(None);
-                    this.ticks.notify();
+                    this.animation_frame.notify();
                 })
                     .unwrap(),
             ));
@@ -72,30 +91,66 @@ impl AnimationContext {
     }
 }
 
-/// An AnimationTarget is a target value for the animation system to ease towards to. Additional properties
+/// An `AnimationTarget` is a target value for the animation system to ease towards to along with
+/// details about the animation such as its duration, easing method and how to deal with previous animations.
+///
+/// An AnimationTarget can also be created from a tuple:
+/// ```
+/// # use std::time::Duration;
+/// # use leptos_animation::{AnimationMode, AnimationTarget, easing};
+/// let _: AnimationTarget<u32> = (42, Duration::from_secs_f64(1.5), easing::ELASTIC_IN, AnimationMode::ReplaceOrStart).into();
+/// ```
+///
+/// It is possible to omit any combination of duration, easing or animation mode:
+/// ```
+/// # use std::time::Duration;
+/// # use leptos_animation::AnimationTarget;
+/// // Omit easing & animation mode, will be filled in by default values
+/// let _: AnimationTarget<u32> = (42, Duration::from_secs_f64(1.5)).into();
+/// ```
+///
+/// If you want to use all the default animation options you can call `into()` directly on a target value:
+/// ```
+/// # use std::time::Duration;
+/// # use leptos_animation::AnimationTarget;
+/// let _: AnimationTarget<u32> = 42.into();
+/// ```
 pub struct AnimationTarget<T> {
+    /// The final value to animate towards to
     pub target: T,
 
     /// The time for which the animation plays. Defaults to 0.5 seconds
     pub duration: Duration,
 
-    /// The easing method to apply during the animation. Defaults to easeInCubic
+    /// The easing method to apply during the animation. Defaults to [`SINE_OUT`](easing::SINE_OUT)
     pub easing: Easing,
 
-    /// The mode specifies how to deal with running animation. This can be used to add, overwrite or cancel running animations.
-    /// The default mode is to start a new animation, see `AnimationMode` for more information
+    /// The mode specifies how to deal with running animation. Defaults to [`Start`](AnimationMode::Start).
+    /// This can be used to add, overwrite or cancel running animations. 
+    /// See [`AnimationMode`] for more information
     pub mode: AnimationMode,
 }
 
+/// The `AnimationMode` specifies how to handle new animation target values with respect to currently running animations
 #[derive(Clone)]
 pub enum AnimationMode {
-    /// Starts a new animation on top
+    /// Always start a new animation on top of the already running animations when the input signal changes.
+    /// This is the default mode. For 'bursty' input signals which can update many times in quick succession (like mouse move events)
+    /// it is recommended to use one of the other modes to prevent many overlapping animations running simultaneously 
     Start,
-    StartOrReplace,
-    SnapOrReplace,
+
+    /// Replace the target value of the latest running animation or start a new animation if there are no animations running
+    ReplaceOrStart,
+
+    /// Replace the target of the latest running animation or snap directly to the target if there are no animations running
+    ReplaceOrSnap,
+
+    /// Cancels any previous animation and sets the output directly to the target value
     Snap,
 }
 
+/// An easing function is one that takes a value between 0.0 - 1.0 and maps it to another value between 0.0 and 1.0
+/// See `<https://easings.net/>` for a list of implemented functions
 pub type Easing = fn(f64) -> f64;
 
 struct Animation<T, I> {
@@ -118,12 +173,17 @@ impl<T, I> Animation<T, I> {
 }
 
 enum AnimationStatus<T, I> {
+    /// No animation running
     Static(T),
-    // Final frame of animation or Snap mode
+
+    /// No animation running, but animated signal is expected to update in the next animation frame to this value.
+    /// After that it will revert back to Static
     Snap(T),
-    /// The VecDeque is guaranteed to contain at least one animation. All animations are guaranteed
-    /// to be sorted in reverse order of when they started with the most recent one in front and the oldest one in the back
-    /// This state does not automatically reset to NoAnimation after the animations are finished
+
+    /// Animations are running
+    /// The `VecDeque` is guaranteed to contain at least one animation. All animations are guaranteed
+    /// to be sorted in reverse order of when they started with the most recent one in front and 
+    /// the oldest one in the back.
     Running {
         to: T,
         to_i: I,
@@ -146,6 +206,65 @@ impl<T: Clone, I> AnimationStatus<T, I> {
     }
 }
 
+/// Create a derived signal that animated the value of the input signals. 
+/// Takes as input a reactive source callback function and a tween function.
+///
+/// The source callback function is run in a reactive context and is expected to take the value of one or more input
+/// signals and return an `AnimationTarget` value. An `AnimationTarget` specifies a target value to
+/// animate towards and details about the duration, easing and animation of how to animate towards it.
+/// There are shortcut methods to create an `AnimationTarget` with default values, see 
+/// [`AnimationTarget`] for details. 
+///
+/// The tween callback specifies how to interpolate between two input values. As input it takes three
+/// arguments: `from`, `to` and `progress`. Where `from` and `to` are the values from the input signal
+/// and the `progress` is a value between 0.0 - 1.0. The easing is already applied to the `progress`.
+/// The tween function is expected to do a linear interpolation between `from` & `to` and return the
+/// result.
+///
+/// If the input is in any way numeric or supports the `Add`, `Sub` and `Mul<f64>` traits it is recommended
+/// to use the [`tween_default`] function as input which performs a simple `(to - from) * progress + from`.
+///
+/// If you are dealing with structs that are composed of numbers (for example a `Position { x: f64, y: f64 }`)
+/// you can use the [derive_more](https://docs.rs/crate/derive_more/latest) crate to implement the necessary traits.
+/// This way you can still use the `tween_default` function.
+///
+/// This function is generic over two types: `T` and `I`.
+/// * `T` is the type of values that are animated between. Animations are always from a `T` towards another `T`
+/// * `I` is the type of the interpolated values between values of type `T`.
+///
+/// In simple cases `I` is the same as `T` such as animating between `f64`'s. But they can also be different
+/// if for example the `T` is an enum which cannot represent 'in-between' values by itself.
+///
+/// # Examples
+/// ```
+/// # use std::time::Duration;
+/// # use leptos::*;
+/// # use leptos_animation::{AnimationContext, AnimationMode, create_animated_signal, easing, tween_default};
+/// # let _ = create_scope(create_runtime(), |cx| {
+/// # AnimationContext::provide(cx);
+/// let (value, set_value) = create_signal(cx, 42.0);
+///
+/// // Simple default animation
+/// let animated_value = create_animated_signal(cx, move || value.get().into(), tween_default);
+///
+/// // Custom duration
+/// let slow_value = create_animated_signal(cx, move || (value.get(), Duration::from_secs_f64(5.0)).into(), tween_default::<f64, f64>);
+///
+/// // Custom everything
+/// let custom_value = create_animated_signal(
+///         cx, 
+///         move || (value.get(), Duration::from_secs_f64(1.5), easing::ELASTIC_IN_OUT, AnimationMode::ReplaceOrStart).into(), 
+///         tween_default::<f64, f64>);
+///
+/// // Custom tween function
+/// let tween_value = create_animated_signal(
+///         cx, 
+///         move || value.get().into(),
+///         |from, to, progress| {
+///             (to - from) * progress + from
+///         });
+/// # });
+/// ```
 pub fn create_animated_signal<T, I>(
     cx: Scope,
     source: impl Fn() -> AnimationTarget<T> + 'static,
@@ -153,7 +272,7 @@ pub fn create_animated_signal<T, I>(
 ) -> Signal<I>
     where
         T: 'static,
-        T: Clone, //where V: Clone, I: PartialEq {
+        T: Clone,
         I: Clone,
         I: Sub<I, Output=I>,
 {
@@ -161,7 +280,7 @@ pub fn create_animated_signal<T, I>(
         .expect("No AnimationContext present, call AnimationContext::provide() in a parent scope");
     let animation_status = store_value(cx, AnimationStatus::<T, I>::Static(source().target));
 
-    // TODO: update doc: Special in-between signal used to update the animation status that only runs based on source changes
+    // Effect that listens to changes in the source and updates the animation status
     create_effect(cx, move |prev| {
         let animation_target = source();
 
@@ -171,12 +290,10 @@ pub fn create_animated_signal<T, I>(
         }
 
         animation_status.update_value(|animation_status| {
-            animation_status.remove_finished_animations(); // Makes sure that there are no finished animations that mess with the below logic
             match animation_status {
-
-                // Starting an animation from a Static state
+                // Starting an animation from a non-running state
                 AnimationStatus::Static(state) | AnimationStatus::Snap(state) => match animation_target.mode {
-                    AnimationMode::Start | AnimationMode::StartOrReplace => {
+                    AnimationMode::Start | AnimationMode::ReplaceOrStart => {
                         let to_i =
                             tween(&animation_target.target, &animation_target.target, 1.0);
                         *animation_status = AnimationStatus::Running {
@@ -192,7 +309,7 @@ pub fn create_animated_signal<T, I>(
                             }]),
                         }
                     }
-                    AnimationMode::SnapOrReplace | AnimationMode::Snap => {
+                    AnimationMode::ReplaceOrSnap | AnimationMode::Snap => {
                         *animation_status = AnimationStatus::Snap(animation_target.target)
                     }
                 },
@@ -218,7 +335,7 @@ pub fn create_animated_signal<T, I>(
                         *to_i = new_to_i;
                     }
                     // This arm can only be reached when there are still live animations, so we perform the 'replace' operation
-                    AnimationMode::StartOrReplace | AnimationMode::SnapOrReplace => {
+                    AnimationMode::ReplaceOrStart | AnimationMode::ReplaceOrSnap => {
                         *to = animation_target.target.clone();
                         *to_i = tween(&animation_target.target, &animation_target.target, 1.0);
                         let mut last_animation = animations.front_mut().unwrap();
@@ -234,7 +351,7 @@ pub fn create_animated_signal<T, I>(
         context.request_animation_frame();
     });
 
-    // This is a crude way to filter signals
+    // This is used to filter signals with create_memo. Yes, a total hack.
     enum SignalUpdate {
         Ignore,
         Update,
@@ -248,9 +365,10 @@ pub fn create_animated_signal<T, I>(
         }
     }
 
-    // TODO doc: Internal signal that fires on animation ticks while
+    // Signal that derives from the global animation_frame signal but only
+    // fires when 'this' animation has something to update.
     let animation_tick = create_memo(cx, move |_| {
-        context.ticks.track();
+        context.animation_frame.track();
 
         let was_snap = animation_status.with_value(|animation_status| {
             matches!(animation_status, AnimationStatus::Snap(_))
@@ -294,4 +412,15 @@ pub fn create_animated_signal<T, I>(
         });
         i
     })
+}
+
+/// Default linear tween between any type of number
+pub fn tween_default<T, I>(from: &T, to: &T, progress: f64) -> I
+    where
+        T: Copy,
+        T: Sub<T, Output=I>,
+        I: Mul<f64, Output=I>,
+        I: Add<T, Output=I>,
+{
+    (*to - *from) * progress + *from
 }

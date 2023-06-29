@@ -3,8 +3,19 @@ use std::time::Duration;
 use crate::{easing::SINE_OUT, AnimationMode, AnimationTarget, Easing};
 
 const DEFAULT_MODE: AnimationMode = AnimationMode::Start;
-const DEFAULT_DURATION: Duration = Duration::new(0, 1000 * 1000 * 1000);
-const DEFAULT_EASING: fn(f64) -> f64 = SINE_OUT;
+const DEFAULT_DURATION: Duration = Duration::new(0, 500 * 1000 * 1000);
+const DEFAULT_EASING: Easing = SINE_OUT;
+
+impl<T: Default> Default for AnimationTarget<T> {
+    fn default() -> Self {
+        AnimationTarget {
+            target: T::default(),
+            mode: DEFAULT_MODE,
+            duration: DEFAULT_DURATION,
+            easing: DEFAULT_EASING
+        }
+    }
+}
 
 impl<T> From<T> for AnimationTarget<T> {
     fn from(target: T) -> Self {

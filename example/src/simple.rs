@@ -7,11 +7,11 @@ pub fn Simple(cx: Scope) -> impl IntoView {
 
     let (value, set_value) = create_signal(cx, 0.0);
 
-    let animated_value = create_animated_signal(cx, move || value.get().into(), tween::default());
+    let animated_value = create_animated_signal(cx, move || value.get().into(), tween_default);
 
     let clear = move |_| set_value.set(0.0);
-    let decrement = move |_| set_value.update(|value| *value -= 1);
-    let increment = move |_| set_value.update(|value| *value += 1);
+    let decrement = move |_| set_value.update(|value| *value -= 1.0);
+    let increment = move |_| set_value.update(|value| *value += 1.0);
 
     // create user interfaces with the declarative `view!` macro
     view! { cx,

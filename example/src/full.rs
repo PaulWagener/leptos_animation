@@ -1,4 +1,4 @@
-use derive_more::{Mul, Sub, Add};
+use derive_more::{Add, Mul, Sub};
 use leptos::html::Canvas;
 use leptos::*;
 use leptos_animation::*;
@@ -28,6 +28,15 @@ impl From<&Color> for Hsv<Rgb, f64> {
 enum Size {
     Small,
     Big,
+}
+
+impl Size {
+    fn to_pixels(&self) -> f64 {
+        match self {
+            Size::Small => 50.0,
+            Size::Big => 100.0,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -64,8 +73,8 @@ enum Easing {
 #[derive(Clone)]
 enum MouseMoveAnimationMode {
     None,
-    StartOrReplace,
-    SnapOrReplace,
+    ReplaceOrStart,
+    ReplaceOrSnap,
     Snap,
 }
 
@@ -105,15 +114,12 @@ pub fn Full(cx: Scope) -> impl IntoView {
     let size = create_animated_signal(
         cx,
         move || AnimationTarget {
-            target: match target_size.get() {
-                Size::Small => 50.0,
-                Size::Big => 100.0,
-            } as f64,
+            target: target_size.get(),
             duration: duration.get_untracked().into(),
             easing: easing.get_untracked().into(),
             mode: AnimationMode::Start,
         },
-        tween::default(),
+        |from, to, progress| tween_default(&from.to_pixels(), &to.to_pixels(), progress),
     );
 
     let rotation = create_animated_signal(
@@ -124,7 +130,7 @@ pub fn Full(cx: Scope) -> impl IntoView {
             easing: easing.get_untracked().into(),
             mode: AnimationMode::Start,
         },
-        tween::default(),
+        tween_default,
     );
 
     let position = create_animated_signal(
@@ -143,7 +149,7 @@ pub fn Full(cx: Scope) -> impl IntoView {
                 mode,
             }
         },
-        tween::default(),
+        tween_default,
     );
 
     let color = create_animated_signal(
@@ -380,18 +386,18 @@ pub fn Full(cx: Scope) -> impl IntoView {
                         <label for="mode_none">"None"</label>
                         <input
                             type="radio"
-                            id="mode_start_or_replace"
-                            on:input=move |_| { set_mode.set(MouseMoveAnimationMode::StartOrReplace) }
-                            prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::StartOrReplace) }
+                            id="mode_replace_or_start"
+                            on:input=move |_| { set_mode.set(MouseMoveAnimationMode::ReplaceOrStart) }
+                            prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::ReplaceOrStart) }
                         />
-                        <label for="mode_start_or_replace">"StartOrReplace"</label>
+                        <label for="mode_replace_or_start">"ReplaceOrStart"</label>
                         <input
                             type="radio"
-                            id="mode_snap_or_replace"
-                            on:input=move |_| { set_mode.set(MouseMoveAnimationMode::SnapOrReplace) }
-                            prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::SnapOrReplace) }
+                            id="mode_replace_or_snap"
+                            on:input=move |_| { set_mode.set(MouseMoveAnimationMode::ReplaceOrSnap) }
+                            prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::ReplaceOrSnap) }
                         />
-                        <label for="mode_snap_or_replace">"SnapOrReplace"</label>
+                        <label for="mode_replace_or_snap">"ReplaceOrSnap"</label>
                         <input
                             type="radio"
                             id="mode_snap"
@@ -423,11 +429,11 @@ pub fn Full(cx: Scope) -> impl IntoView {
                             };
                             match mode.get_untracked() {
                                 MouseMoveAnimationMode::None => {}
-                                MouseMoveAnimationMode::StartOrReplace => {
-                                    set_target_position.set((position, AnimationMode::StartOrReplace))
+                                MouseMoveAnimationMode::ReplaceOrStart => {
+                                    set_target_position.set((position, AnimationMode::ReplaceOrStart))
                                 }
-                                MouseMoveAnimationMode::SnapOrReplace => {
-                                    set_target_position.set((position, AnimationMode::SnapOrReplace))
+                                MouseMoveAnimationMode::ReplaceOrSnap => {
+                                    set_target_position.set((position, AnimationMode::ReplaceOrStart))
                                 }
                                 MouseMoveAnimationMode::Snap => {
                                     set_target_position.set((position, AnimationMode::Snap))
