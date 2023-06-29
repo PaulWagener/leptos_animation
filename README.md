@@ -1,7 +1,7 @@
 [Docs](https://docs.rs/leptos_animation/latest/leptos_animation/)
 | [Demo](https://paulwagener.github.io/leptos_animation/)
 
-Create derived signals that are animated versions.
+Create derived signals that are animated versions of the original signal
 
 ```rust
 use leptos::*;

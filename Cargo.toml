@@ -5,6 +5,9 @@ edition = "2021"
 description = "Create animated signals in the Leptos framework"
 homepage = "https://github.com/PaulWagener/leptos_animation"
 repository = "https://github.com/PaulWagener/leptos_animation"
+keywords = ["leptos", "animation"]
+license = "WTFPL"
+readme = "README.md"
 
 [dependencies]
 leptos = "0.3.1"
