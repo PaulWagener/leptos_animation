@@ -14,12 +14,17 @@ pub fn Simple(cx: Scope) -> impl IntoView {
     let increment = move |_| set_value.update(|value| *value += 1.0);
 
     view! { cx,
-        <div>
+        <main class="simple">
             <button on:click=clear>"Clear"</button>
             <button on:click=decrement>"-1"</button>
             <button on:click=increment>"+1"</button>
-            <div>"Value: " {value} "!"</div>
-            <div>"Animated value: " {animated_value} "!"</div>
-        </div>
+            <div>"Value: " {value} <br/> "Animated value: " {animated_value}</div>
+            <a
+                class="source"
+                href="https://github.com/PaulWagener/leptos_animation/blob/main/example/src/simple.rs"
+            >
+                "View Source"
+            </a>
+        </main>
     }
 }

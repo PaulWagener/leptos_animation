@@ -25,11 +25,11 @@ fn main() {
         view! { cx,
             <Router>
                 <h1>"Animation Demo"</h1>
-                <div>
+                <nav>
                     <a href="/">"Full"</a>
                     <a href="/simple">"Simple"</a>
                     <a href="/text">"Text"</a>
-                </div>
+                </nav>
                 <Routes>
                     <Route
                         path="/"

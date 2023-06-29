@@ -21,13 +21,19 @@ pub fn Text(cx: Scope) -> impl IntoView {
     );
 
     view! { cx,
-        <div>
+        <main class="text">
             <button on:click=move |_| { set_text.set("") }>"Empty"</button>
             <button on:click=move |_| { set_text.set("Hello World") }>"Hello"</button>
             <button on:click=move |_| { set_text.set(AUSTIN) }>"Austin"</button>
             <button on:click=move |_| { set_text.set(LOREM_IPSUM) }>"Lorem Ipsum"</button>
             <textarea prop:value=move || animated_text.get().0></textarea>
-        </div>
+            <a
+                class="source"
+                href="https://github.com/PaulWagener/leptos_animation/blob/main/example/src/text.rs"
+            >
+                "View Source"
+            </a>
+        </main>
     }
 }
 

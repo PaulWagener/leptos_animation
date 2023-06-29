@@ -6,7 +6,18 @@ h1 {
   text-align: center
 }
 
-main {
+nav {
+  display: flex;
+  justify-content: center;
+
+  a {
+    display: block;
+    margin: 4px;
+    font-size: 18pt;
+  }
+}
+
+main.full {
   display: flex;
   justify-content: center;
 
@@ -21,4 +32,41 @@ main {
     height: 400px;
     border: 2px solid black;
   }
+}
+
+main.simple {
+  text-align: center;
+  margin: 10px;
+
+  button {
+    margin: 2px;
+  }
+
+  div {
+    margin: 2px auto;
+    text-align: left;
+    width: 350px;
+
+  }
+}
+
+main.text {
+  text-align: center;
+
+  textarea {
+    display: block;
+    margin: 8px auto;
+    width: 500px;
+    height: 500px;
+  }
+
+  button {
+    margin: 8px;
+  }
+}
+
+a.source {
+  position: absolute;
+  top: 4px;
+  right: 4px;
 }
