@@ -2,8 +2,9 @@
 name = "leptos_animation"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Create animated signals in the Leptos framework"
+homepage = "https://github.com/PaulWagener/leptos_animation"
+repository = "https://github.com/PaulWagener/leptos_animation"
 
 [dependencies]
 leptos = "0.3.1"
