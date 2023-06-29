@@ -2,19 +2,6 @@ use leptos::*;
 use leptos_animation::*;
 use std::ops::Sub;
 
-#[derive(Clone)]
-struct TextString(String);
-
-/// create_animated_signal requires interpolated values to be subtractable to allow for overlapping
-/// animations. This is a very ill-defined operations for strings, so we basically cheat by not providing
-/// a real implementation. This will result in glitches when there are multiple overlapping animations.
-impl Sub for TextString {
-    type Output = TextString;
-    fn sub(self, rhs: Self) -> Self::Output {
-        rhs
-    }
-}
-
 #[component]
 pub fn Text(cx: Scope) -> impl IntoView {
     let (text, set_text) = create_signal(cx, "");
@@ -23,7 +10,7 @@ pub fn Text(cx: Scope) -> impl IntoView {
         cx,
         move || text.get().into(),
         |from, to, progress| {
-            // Animate between strings by taking the first beginning of the to-string
+            // Animate between strings by taking the beginning of the to-string
             // followed by the end of the from-string
             TextString(String::from_iter(
                 to.chars()
@@ -41,6 +28,19 @@ pub fn Text(cx: Scope) -> impl IntoView {
             <button on:click=move |_| { set_text.set(LOREM_IPSUM) }>"Lorem Ipsum"</button>
             <textarea prop:value=move || animated_text.get().0></textarea>
         </div>
+    }
+}
+
+#[derive(Clone)]
+struct TextString(String);
+
+/// create_animated_signal requires interpolated values to be subtractable to allow for overlapping
+/// animations. This is a very ill-defined operations for strings, so we basically cheat by not providing
+/// a real implementation. This will result in glitches when there are multiple overlapping animations.
+impl Sub for TextString {
+    type Output = TextString;
+    fn sub(self, rhs: Self) -> Self::Output {
+        rhs
     }
 }
 

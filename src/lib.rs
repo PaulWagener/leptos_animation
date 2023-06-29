@@ -150,7 +150,7 @@ pub enum AnimationMode {
 }
 
 /// An easing function is one that takes a value between 0.0 - 1.0 and maps it to another value between 0.0 and 1.0
-/// See `<https://easings.net/>` for a list of implemented functions
+/// See `https://easings.net` for a list of implemented functions
 pub type Easing = fn(f64) -> f64;
 
 struct Animation<T, I> {
@@ -235,11 +235,30 @@ impl<T: Clone, I> AnimationStatus<T, I> {
 /// In simple cases `I` is the same as `T` such as animating between `f64`'s. But they can also be different
 /// if for example the `T` is an enum which cannot represent 'in-between' values by itself.
 ///
+/// Updates to the derived signal only happen on browser animation frames and only when there are animations
+/// running. If you are dealing with a HTML Canvas it is recommended to use a `create_effect()` to draw on the
+/// canvas and subscribe directly to the animated signals.
+/// All animated signals update simultaneously on animation frames so even if you subscribe to multiple animated
+/// input signals the effect will never run more than 60fps.
+///
+/// # Additive animations
+///
+/// This library uses an additive animation system. This means that multiple animations with different
+/// targets and different durations can play simultaneously without them interrupting each other.
+///
+/// Internally all animations are towards 0. For example if we start an animation from 0 to 100, this is
+/// converted to an animation from -100 to 0 which gets added to the final 100 value.
+///
+/// If then a second animation is started from 100 to 1000 it gets converted to an animation from -900 to 0.
+/// Both the -100 to 0 and the -900 to 0 animation value get added to the final 1000 value until both settle on 1000 as they reach 0.
+///
+/// This allows for all animations to play to completion even if animations are started before the previous animation is finished.
+///
 /// # Examples
 /// ```
 /// # use std::time::Duration;
 /// # use leptos::*;
-/// # use leptos_animation::{AnimationContext, AnimationMode, create_animated_signal, easing, tween_default};
+/// # use leptos_animation::{AnimationContext, AnimationMode, AnimationTarget, create_animated_signal, easing, tween_default};
 /// # let _ = create_scope(create_runtime(), |cx| {
 /// # AnimationContext::provide(cx);
 /// let (value, set_value) = create_signal(cx, 42.0);
@@ -250,11 +269,16 @@ impl<T: Clone, I> AnimationStatus<T, I> {
 /// // Custom duration
 /// let slow_value = create_animated_signal(cx, move || (value.get(), Duration::from_secs_f64(5.0)).into(), tween_default::<f64, f64>);
 ///
-/// // Custom everything
+/// // Custom duration, easing & mode
 /// let custom_value = create_animated_signal(
 ///         cx, 
-///         move || (value.get(), Duration::from_secs_f64(1.5), easing::ELASTIC_IN_OUT, AnimationMode::ReplaceOrStart).into(), 
-///         tween_default::<f64, f64>);
+///         move || AnimationTarget {
+///             target: value.get(),
+///             duration: Duration::from_secs_f64(1.5), 
+///             easing: easing::ELASTIC_IN_OUT,
+///             mode: AnimationMode::ReplaceOrStart
+///         },
+///         tween_default);
 ///
 /// // Custom tween function
 /// let tween_value = create_animated_signal(
@@ -263,6 +287,7 @@ impl<T: Clone, I> AnimationStatus<T, I> {
 ///         |from, to, progress| {
 ///             (to - from) * progress + from
 ///         });
+///
 /// # });
 /// ```
 pub fn create_animated_signal<T, I>(

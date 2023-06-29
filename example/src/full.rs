@@ -7,88 +7,6 @@ use std::f64::consts::PI;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::CanvasRenderingContext2d;
 
-#[derive(Clone, Sub)]
-struct Color {
-    red: i16,
-    green: i16,
-    blue: i16,
-}
-
-impl From<&Color> for Hsv<Rgb, f64> {
-    fn from(Color { red, green, blue }: &Color) -> Self {
-        Hsv::from_color_unclamped(Rgb::new(
-            *red as f64 / 255.0,
-            *green as f64 / 255.0,
-            *blue as f64 / 255.0,
-        ))
-    }
-}
-
-#[derive(Clone)]
-enum Size {
-    Small,
-    Big,
-}
-
-impl Size {
-    fn to_pixels(&self) -> f64 {
-        match self {
-            Size::Small => 50.0,
-            Size::Big => 100.0,
-        }
-    }
-}
-
-#[derive(Clone)]
-enum Duration {
-    Short,
-    Normal,
-    Long,
-}
-
-#[derive(Add, Sub, Mul, Copy, Clone)] // TODO: Try without Copy & Clone
-struct Position {
-    x: f64,
-    y: f64,
-}
-
-impl From<Duration> for std::time::Duration {
-    fn from(value: Duration) -> Self {
-        match value {
-            Duration::Short => std::time::Duration::from_secs_f64(0.5),
-            Duration::Normal => std::time::Duration::from_secs_f64(1.0),
-            Duration::Long => std::time::Duration::from_secs_f64(2.0),
-        }
-    }
-}
-
-#[derive(Clone)]
-enum Easing {
-    Linear,
-    Smooth,
-    Overshoot,
-    Elastic,
-}
-
-#[derive(Clone)]
-enum MouseMoveAnimationMode {
-    None,
-    ReplaceOrStart,
-    ReplaceOrSnap,
-    Snap,
-}
-
-impl From<Easing> for leptos_animation::Easing {
-    fn from(value: Easing) -> Self {
-        match value {
-            Easing::Linear => easing::LINEAR,
-            Easing::Smooth => easing::CUBIC_OUT,
-            Easing::Overshoot => easing::BACK_OUT,
-            Easing::Elastic => easing::ELASTIC_OUT,
-        }
-    }
-}
-
 #[component]
 pub fn Full(cx: Scope) -> impl IntoView {
     // These are the target values that the animation is trying to reach
@@ -444,5 +362,87 @@ pub fn Full(cx: Scope) -> impl IntoView {
                 </div>
             </main>
         </div>
+    }
+}
+
+#[derive(Clone, Sub)]
+struct Color {
+    red: i16,
+    green: i16,
+    blue: i16,
+}
+
+impl From<&Color> for Hsv<Rgb, f64> {
+    fn from(Color { red, green, blue }: &Color) -> Self {
+        Hsv::from_color_unclamped(Rgb::new(
+            *red as f64 / 255.0,
+            *green as f64 / 255.0,
+            *blue as f64 / 255.0,
+        ))
+    }
+}
+
+#[derive(Clone)]
+enum Size {
+    Small,
+    Big,
+}
+
+impl Size {
+    fn to_pixels(&self) -> f64 {
+        match self {
+            Size::Small => 50.0,
+            Size::Big => 100.0,
+        }
+    }
+}
+
+#[derive(Clone)]
+enum Duration {
+    Short,
+    Normal,
+    Long,
+}
+
+#[derive(Add, Sub, Mul, Copy, Clone)]
+struct Position {
+    x: f64,
+    y: f64,
+}
+
+impl From<Duration> for std::time::Duration {
+    fn from(value: Duration) -> Self {
+        match value {
+            Duration::Short => std::time::Duration::from_secs_f64(0.5),
+            Duration::Normal => std::time::Duration::from_secs_f64(1.0),
+            Duration::Long => std::time::Duration::from_secs_f64(2.0),
+        }
+    }
+}
+
+#[derive(Clone)]
+enum Easing {
+    Linear,
+    Smooth,
+    Overshoot,
+    Elastic,
+}
+
+#[derive(Clone)]
+enum MouseMoveAnimationMode {
+    None,
+    ReplaceOrStart,
+    ReplaceOrSnap,
+    Snap,
+}
+
+impl From<Easing> for leptos_animation::Easing {
+    fn from(value: Easing) -> Self {
+        match value {
+            Easing::Linear => easing::LINEAR,
+            Easing::Smooth => easing::CUBIC_OUT,
+            Easing::Overshoot => easing::BACK_OUT,
+            Easing::Elastic => easing::ELASTIC_OUT,
+        }
     }
 }

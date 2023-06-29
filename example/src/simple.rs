@@ -13,7 +13,6 @@ pub fn Simple(cx: Scope) -> impl IntoView {
     let decrement = move |_| set_value.update(|value| *value -= 1.0);
     let increment = move |_| set_value.update(|value| *value += 1.0);
 
-    // create user interfaces with the declarative `view!` macro
     view! { cx,
         <div>
             <button on:click=clear>"Clear"</button>
