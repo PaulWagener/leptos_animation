@@ -1,6 +1,6 @@
 [package]
 name = "leptos_animation"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Create animated signals in the Leptos framework"
 homepage = "https://github.com/PaulWagener/leptos_animation"
@@ -10,5 +10,5 @@ license = "WTFPL"
 readme = "README.md"
 
 [dependencies]
-leptos = "0.3.1"
+leptos = "0.4.3"
 instant = { version = "0.1.12", features = ["wasm-bindgen"] }
