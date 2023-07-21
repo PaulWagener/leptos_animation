@@ -9,7 +9,7 @@ use leptos_animation::*;
 
 #[component]
 pub fn Counter(cx: Scope) -> impl IntoView {
-    AnimatedContext::provide(cx);
+    AnimationContext::provide(cx);
 
     let (value, set_value) = create_signal(cx, 0.0);
 
