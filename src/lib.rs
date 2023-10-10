@@ -1,11 +1,11 @@
 use instant::Instant;
-use std::ops::{Add, Mul};
+use std::ops::{Add, Deref, Mul};
 use std::{collections::VecDeque, ops::Sub, time::Duration};
 
 use leptos::{
     create_effect, create_memo, create_trigger, leptos_dom::helpers::AnimationFrameRequestHandle,
     on_cleanup, provide_context, request_animation_frame_with_handle, store_value, use_context,
-    Signal, SignalWith, StoredValue, Trigger,
+    Effect, IntoView, Memo, Signal, SignalDispose, SignalWith, StoredValue, Trigger, View,
 };
 
 pub mod animation_target;
@@ -189,6 +189,21 @@ impl<T: Clone, I> AnimationStatus<T, I> {
     }
 }
 
+// This is used to filter signals with create_memo. Yes, a total hack.
+enum SignalUpdate {
+    Ignore,
+    Update,
+}
+
+impl PartialEq for SignalUpdate {
+    fn eq(&self, other: &Self) -> bool {
+        match other {
+            SignalUpdate::Ignore => true,
+            SignalUpdate::Update => false,
+        }
+    }
+}
+
 /// Create a derived signal that animated the value of the input signals.
 /// Takes as input a reactive source callback function and a tween function.
 ///
@@ -274,7 +289,7 @@ impl<T: Clone, I> AnimationStatus<T, I> {
 pub fn create_animated_signal<T, I>(
     source: impl Fn() -> AnimationTarget<T> + 'static,
     tween: fn(&T, &T, f64) -> I,
-) -> Signal<I>
+) -> AnimatedSignal<I>
 where
     T: 'static,
     T: Clone,
@@ -286,7 +301,7 @@ where
     let animation_status = store_value(AnimationStatus::<T, I>::Static(source().target));
 
     // Effect that listens to changes in the source and updates the animation status
-    create_effect(move |prev| {
+    let update_animation_status_effect = create_effect(move |prev| {
         let animation_target = source();
 
         // Don't start an animation the very first run
@@ -358,20 +373,6 @@ where
         context.request_animation_frame();
     });
 
-    // This is used to filter signals with create_memo. Yes, a total hack.
-    enum SignalUpdate {
-        Ignore,
-        Update,
-    }
-    impl PartialEq for SignalUpdate {
-        fn eq(&self, other: &Self) -> bool {
-            match other {
-                SignalUpdate::Ignore => true,
-                SignalUpdate::Update => false,
-            }
-        }
-    }
-
     // Signal that derives from the global animation_frame signal but only
     // fires when 'this' animation has something to update.
     let animation_tick = create_memo(move |_| {
@@ -394,7 +395,7 @@ where
         }
     });
 
-    Signal::derive(move || {
+    let animated_signal = Signal::derive(move || {
         animation_tick.track();
 
         let i: I = animation_status.with_value(|animation_status| match animation_status {
@@ -417,7 +418,13 @@ where
             }
         });
         i
-    })
+    });
+
+    AnimatedSignal {
+        update_animation_status_effect,
+        animation_tick,
+        animated_signal,
+    }
 }
 
 /// Default linear tween between any type of number
@@ -429,4 +436,35 @@ where
     I: Add<T, Output = I>,
 {
     (*to - *from) * progress + *from
+}
+
+pub struct AnimatedSignal<I: 'static> {
+    update_animation_status_effect: Effect<()>,
+    animation_tick: Memo<SignalUpdate>,
+    animated_signal: Signal<I>,
+}
+
+impl<I> Deref for AnimatedSignal<I> {
+    type Target = Signal<I>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.animated_signal
+    }
+}
+
+impl<T> SignalDispose for AnimatedSignal<T> {
+    fn dispose(self) {
+        self.animation_tick.dispose();
+        self.update_animation_status_effect.dispose();
+        self.animated_signal.dispose();
+    }
+}
+
+impl<T> IntoView for AnimatedSignal<T>
+where
+    T: IntoView + Clone,
+{
+    fn into_view(self) -> View {
+        self.animated_signal.into_view()
+    }
 }
