@@ -1,40 +1,23 @@
 use instant::Instant;
-use std::{
-    collections::VecDeque,
-    ops::Sub,
-    time::Duration,
-};
 use std::ops::{Add, Mul};
-
+use std::{collections::VecDeque, ops::Sub, time::Duration};
 
 use leptos::{
-    store_value,
-    use_context,
-    Scope,
-    Signal,
-    request_animation_frame_with_handle,
-    provide_context,
-    on_cleanup,
-    leptos_dom::helpers::AnimationFrameRequestHandle,
-    create_trigger,
-    create_memo,
-    create_effect,
-    StoredValue,
-    Trigger,
-    SignalWith,
+    create_effect, create_memo, create_trigger, leptos_dom::helpers::AnimationFrameRequestHandle,
+    on_cleanup, provide_context, request_animation_frame_with_handle, store_value, use_context,
+    Signal, SignalWith, StoredValue, Trigger,
 };
 
 pub mod animation_target;
 pub mod easing;
-
 
 /// The `AnimationContext` handles updating all animated values and calls to `window.request_animation_frame()`.
 /// It is required to provide one in a parent context before calling [`create_animated_signal()`]
 /// ```
 /// # use leptos::*;
 /// # use leptos_animation::AnimationContext;
-/// # let _ = create_scope(create_runtime(), |cx| {
-///  AnimationContext::provide(cx);
+/// # let _ = create_scope(create_runtime(), || {
+///  AnimationContext::provide();
 /// # });
 /// ```
 #[derive(Copy, Clone)]
@@ -49,18 +32,18 @@ pub struct AnimationContext {
 impl AnimationContext {
     /// Sets up an AnimationContext for this scope and all child scopes. For normal use you only
     /// need to call this once in a root component of the application.
-    pub fn provide(cx: Scope) -> AnimationContext {
-        let animation_frame = create_trigger(cx);
+    pub fn provide() -> AnimationContext {
+        let animation_frame = create_trigger();
         let animation_frame_request_handle =
-            store_value(cx, Option::<AnimationFrameRequestHandle>::None);
+            store_value(Option::<AnimationFrameRequestHandle>::None);
 
         let animation_context = AnimationContext {
             animation_frame,
             animation_frame_request_handle,
         };
-        provide_context(cx, animation_context.clone());
+        provide_context(animation_context.clone());
 
-        on_cleanup(cx, move || {
+        on_cleanup(move || {
             if let Some(handle) = animation_frame_request_handle.get_value() {
                 handle.cancel()
             }
@@ -69,12 +52,12 @@ impl AnimationContext {
         animation_context
     }
 
-    /// Manually request a new animation frame. It will result in a `notify()` on the 
+    /// Manually request a new animation frame. It will result in a `notify()` on the
     /// `AnimationContext.animation_frame` trigger which updates all running animations
     /// simultaneously. Repeated calls will result in only a single animation frame request.
     ///
     /// Animated signals will call this automatically when they are running, it is not necessary
-    /// to call this function unless you are doing something custom. 
+    /// to call this function unless you are doing something custom.
     pub fn request_animation_frame(&self) {
         // Prevent multiple animation frame requests from existing simultaneously
         if self.animation_frame_request_handle.get_value().is_none() {
@@ -85,7 +68,7 @@ impl AnimationContext {
                     this.animation_frame_request_handle.set_value(None);
                     this.animation_frame.notify();
                 })
-                    .unwrap(),
+                .unwrap(),
             ));
         }
     }
@@ -126,7 +109,7 @@ pub struct AnimationTarget<T> {
     pub easing: Easing,
 
     /// The mode specifies how to deal with running animation. Defaults to [`Start`](AnimationMode::Start).
-    /// This can be used to add, overwrite or cancel running animations. 
+    /// This can be used to add, overwrite or cancel running animations.
     /// See [`AnimationMode`] for more information
     pub mode: AnimationMode,
 }
@@ -136,7 +119,7 @@ pub struct AnimationTarget<T> {
 pub enum AnimationMode {
     /// Always start a new animation on top of the already running animations when the input signal changes.
     /// This is the default mode. For 'bursty' input signals which can update many times in quick succession (like mouse move events)
-    /// it is recommended to use one of the other modes to prevent many overlapping animations running simultaneously 
+    /// it is recommended to use one of the other modes to prevent many overlapping animations running simultaneously
     Start,
 
     /// Replace the target value of the latest running animation or start a new animation if there are no animations running
@@ -182,7 +165,7 @@ enum AnimationStatus<T, I> {
 
     /// Animations are running
     /// The `VecDeque` is guaranteed to contain at least one animation. All animations are guaranteed
-    /// to be sorted in reverse order of when they started with the most recent one in front and 
+    /// to be sorted in reverse order of when they started with the most recent one in front and
     /// the oldest one in the back.
     Running {
         to: T,
@@ -195,7 +178,7 @@ impl<T: Clone, I> AnimationStatus<T, I> {
     fn remove_finished_animations(&mut self) {
         match self {
             AnimationStatus::Static(_) => {}
-            AnimationStatus::Snap(value) => { *self = AnimationStatus::Static(value.clone()) }
+            AnimationStatus::Snap(value) => *self = AnimationStatus::Static(value.clone()),
             AnimationStatus::Running { to, animations, .. } => {
                 animations.retain(|animation| !animation.is_finished());
                 if animations.len() == 0 {
@@ -206,14 +189,14 @@ impl<T: Clone, I> AnimationStatus<T, I> {
     }
 }
 
-/// Create a derived signal that animated the value of the input signals. 
+/// Create a derived signal that animated the value of the input signals.
 /// Takes as input a reactive source callback function and a tween function.
 ///
 /// The source callback function is run in a reactive context and is expected to take the value of one or more input
 /// signals and return an `AnimationTarget` value. An `AnimationTarget` specifies a target value to
 /// animate towards and details about the duration, easing and animation of how to animate towards it.
-/// There are shortcut methods to create an `AnimationTarget` with default values, see 
-/// [`AnimationTarget`] for details. 
+/// There are shortcut methods to create an `AnimationTarget` with default values, see
+/// [`AnimationTarget`] for details.
 ///
 /// The tween callback specifies how to interpolate between two input values. As input it takes three
 /// arguments: `from`, `to` and `progress`. Where `from` and `to` are the values from the input signal
@@ -259,22 +242,21 @@ impl<T: Clone, I> AnimationStatus<T, I> {
 /// # use std::time::Duration;
 /// # use leptos::*;
 /// # use leptos_animation::{AnimationContext, AnimationMode, AnimationTarget, create_animated_signal, easing, tween_default};
-/// # let _ = create_scope(create_runtime(), |cx| {
-/// # AnimationContext::provide(cx);
-/// let (value, set_value) = create_signal(cx, 42.0);
+/// # let _ = create_scope(create_runtime(), || {
+/// # AnimationContext::provide();
+/// let (value, set_value) = create_signal(42.0);
 ///
 /// // Simple default animation
-/// let animated_value = create_animated_signal(cx, move || value.get().into(), tween_default);
+/// let animated_value = create_animated_signal(move || value.get().into(), tween_default);
 ///
 /// // Custom duration
-/// let slow_value = create_animated_signal(cx, move || (value.get(), Duration::from_secs_f64(5.0)).into(), tween_default::<f64, f64>);
+/// let slow_value = create_animated_signal(move || (value.get(), Duration::from_secs_f64(5.0)).into(), tween_default::<f64, f64>);
 ///
 /// // Custom duration, easing & mode
 /// let custom_value = create_animated_signal(
-///         cx, 
 ///         move || AnimationTarget {
 ///             target: value.get(),
-///             duration: Duration::from_secs_f64(1.5), 
+///             duration: Duration::from_secs_f64(1.5),
 ///             easing: easing::ELASTIC_IN_OUT,
 ///             mode: AnimationMode::ReplaceOrStart
 ///         },
@@ -282,7 +264,6 @@ impl<T: Clone, I> AnimationStatus<T, I> {
 ///
 /// // Custom tween function
 /// let tween_value = create_animated_signal(
-///         cx, 
 ///         move || value.get().into(),
 ///         |from, to, progress| {
 ///             (to - from) * progress + from
@@ -291,22 +272,21 @@ impl<T: Clone, I> AnimationStatus<T, I> {
 /// # });
 /// ```
 pub fn create_animated_signal<T, I>(
-    cx: Scope,
     source: impl Fn() -> AnimationTarget<T> + 'static,
     tween: fn(&T, &T, f64) -> I,
 ) -> Signal<I>
-    where
-        T: 'static,
-        T: Clone,
-        I: Clone,
-        I: Sub<I, Output=I>,
+where
+    T: 'static,
+    T: Clone,
+    I: Clone,
+    I: Sub<I, Output = I>,
 {
-    let context: AnimationContext = use_context(cx)
+    let context: AnimationContext = use_context()
         .expect("No AnimationContext present, call AnimationContext::provide() in a parent scope");
-    let animation_status = store_value(cx, AnimationStatus::<T, I>::Static(source().target));
+    let animation_status = store_value(AnimationStatus::<T, I>::Static(source().target));
 
     // Effect that listens to changes in the source and updates the animation status
-    create_effect(cx, move |prev| {
+    create_effect(move |prev| {
         let animation_target = source();
 
         // Don't start an animation the very first run
@@ -317,27 +297,29 @@ pub fn create_animated_signal<T, I>(
         animation_status.update_value(|animation_status| {
             match animation_status {
                 // Starting an animation from a non-running state
-                AnimationStatus::Static(state) | AnimationStatus::Snap(state) => match animation_target.mode {
-                    AnimationMode::Start | AnimationMode::ReplaceOrStart => {
-                        let to_i =
-                            tween(&animation_target.target, &animation_target.target, 1.0);
-                        *animation_status = AnimationStatus::Running {
-                            to: animation_target.target.clone(),
-                            to_i: to_i.clone(),
-                            animations: VecDeque::from([Animation {
-                                from: state.clone(),
-                                to: animation_target.target,
-                                to_i,
-                                start: Instant::now(),
-                                duration: animation_target.duration,
-                                easing: animation_target.easing,
-                            }]),
+                AnimationStatus::Static(state) | AnimationStatus::Snap(state) => {
+                    match animation_target.mode {
+                        AnimationMode::Start | AnimationMode::ReplaceOrStart => {
+                            let to_i =
+                                tween(&animation_target.target, &animation_target.target, 1.0);
+                            *animation_status = AnimationStatus::Running {
+                                to: animation_target.target.clone(),
+                                to_i: to_i.clone(),
+                                animations: VecDeque::from([Animation {
+                                    from: state.clone(),
+                                    to: animation_target.target,
+                                    to_i,
+                                    start: Instant::now(),
+                                    duration: animation_target.duration,
+                                    easing: animation_target.easing,
+                                }]),
+                            }
+                        }
+                        AnimationMode::ReplaceOrSnap | AnimationMode::Snap => {
+                            *animation_status = AnimationStatus::Snap(animation_target.target)
                         }
                     }
-                    AnimationMode::ReplaceOrSnap | AnimationMode::Snap => {
-                        *animation_status = AnimationStatus::Snap(animation_target.target)
-                    }
-                },
+                }
                 // Start an animation from a running state
                 AnimationStatus::Running {
                     to,
@@ -385,19 +367,18 @@ pub fn create_animated_signal<T, I>(
         fn eq(&self, other: &Self) -> bool {
             match other {
                 SignalUpdate::Ignore => true,
-                SignalUpdate::Update => false
+                SignalUpdate::Update => false,
             }
         }
     }
 
     // Signal that derives from the global animation_frame signal but only
     // fires when 'this' animation has something to update.
-    let animation_tick = create_memo(cx, move |_| {
+    let animation_tick = create_memo(move |_| {
         context.animation_frame.track();
 
-        let was_snap = animation_status.with_value(|animation_status| {
-            matches!(animation_status, AnimationStatus::Snap(_))
-        });
+        let was_snap = animation_status
+            .with_value(|animation_status| matches!(animation_status, AnimationStatus::Snap(_)));
 
         animation_status.update_value(|animation_status| {
             animation_status.remove_finished_animations();
@@ -406,20 +387,20 @@ pub fn create_animated_signal<T, I>(
         if was_snap {
             SignalUpdate::Update
         } else {
-            animation_status.with_value(|animation_status| {
-                match animation_status {
-                    AnimationStatus::Static(_) => SignalUpdate::Ignore,
-                    _ => SignalUpdate::Update,
-                }
+            animation_status.with_value(|animation_status| match animation_status {
+                AnimationStatus::Static(_) => SignalUpdate::Ignore,
+                _ => SignalUpdate::Update,
             })
         }
     });
 
-    Signal::derive(cx, move || {
+    Signal::derive(move || {
         animation_tick.track();
 
         let i: I = animation_status.with_value(|animation_status| match animation_status {
-            AnimationStatus::Static(state) | AnimationStatus::Snap(state) => tween(state, state, 1.0),
+            AnimationStatus::Static(state) | AnimationStatus::Snap(state) => {
+                tween(state, state, 1.0)
+            }
             AnimationStatus::Running {
                 animations, to_i, ..
             } => {
@@ -441,11 +422,11 @@ pub fn create_animated_signal<T, I>(
 
 /// Default linear tween between any type of number
 pub fn tween_default<T, I>(from: &T, to: &T, progress: f64) -> I
-    where
-        T: Copy,
-        T: Sub<T, Output=I>,
-        I: Mul<f64, Output=I>,
-        I: Add<T, Output=I>,
+where
+    T: Copy,
+    T: Sub<T, Output = I>,
+    I: Mul<f64, Output = I>,
+    I: Add<T, Output = I>,
 {
     (*to - *from) * progress + *from
 }

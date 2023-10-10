@@ -3,11 +3,10 @@ use leptos_animation::*;
 use std::ops::Sub;
 
 #[component]
-pub fn Text(cx: Scope) -> impl IntoView {
-    let (text, set_text) = create_signal(cx, "");
+pub fn Text() -> impl IntoView {
+    let (text, set_text) = create_signal("");
 
     let animated_text = create_animated_signal(
-        cx,
         move || text.get().into(),
         |from, to, progress| {
             // Animate between strings by taking the beginning of the to-string
@@ -20,7 +19,7 @@ pub fn Text(cx: Scope) -> impl IntoView {
         },
     );
 
-    view! { cx,
+    view! {
         <main class="text">
             <button on:click=move |_| { set_text.set("") }>"Empty"</button>
             <button on:click=move |_| { set_text.set("Hello World") }>"Hello"</button>

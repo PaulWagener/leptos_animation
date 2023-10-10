@@ -18,11 +18,11 @@ fn main() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     wasm_logger::init(wasm_logger::Config::default());
 
-    mount_to_body(|cx| {
+    mount_to_body(|| {
         // Initialize a single AnimationContext for all three demo's
-        AnimationContext::provide(cx);
+        AnimationContext::provide();
 
-        view! { cx,
+        view! {
             <Router>
                 <h1>"Animation Demo"</h1>
                 <nav>
@@ -33,22 +33,25 @@ fn main() {
                 <Routes>
                     <Route
                         path="/leptos_animation"
-                        view=|cx| {
-                            view! { cx, <Full/> }
+                        view=|| {
+                            view! { <Full/> }
                         }
                     />
+
                     <Route
                         path="/leptos_animation/simple"
-                        view=|cx| {
-                            view! { cx, <Simple/> }
+                        view=|| {
+                            view! { <Simple/> }
                         }
                     />
+
                     <Route
                         path="/leptos_animation/text"
-                        view=|cx| {
-                            view! { cx, <Text/> }
+                        view=|| {
+                            view! { <Text/> }
                         }
                     />
+
                 </Routes>
             </Router>
         }

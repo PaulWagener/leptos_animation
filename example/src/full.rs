@@ -8,29 +8,25 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::CanvasRenderingContext2d;
 
 #[component]
-pub fn Full(cx: Scope) -> impl IntoView {
+pub fn Full() -> impl IntoView {
     // These are the target values that the animation is trying to reach
-    let (target_color, set_target_color) = create_signal(
-        cx,
-        Color {
-            red: 255,
-            green: 0,
-            blue: 0,
-        },
-    );
-    let (target_size, set_target_size) = create_signal(cx, Size::Small);
-    let (target_rotation, set_target_rotation) = create_signal(cx, 0.0);
+    let (target_color, set_target_color) = create_signal(Color {
+        red: 255,
+        green: 0,
+        blue: 0,
+    });
+    let (target_size, set_target_size) = create_signal(Size::Small);
+    let (target_rotation, set_target_rotation) = create_signal(0.0);
     let (target_position, set_target_position) =
-        create_signal(cx, (Position { x: 200.0, y: 200.0 }, AnimationMode::Snap));
+        create_signal((Position { x: 200.0, y: 200.0 }, AnimationMode::Snap));
 
     // Animation mode, easings & durations are normally hardcoded, they are only signals here for demo purposes
-    let (duration, set_duration) = create_signal(cx, Duration::Normal);
-    let (easing, set_easing) = create_signal(cx, Easing::Smooth);
-    let (mode, set_mode) = create_signal(cx, MouseMoveAnimationMode::None);
+    let (duration, set_duration) = create_signal(Duration::Normal);
+    let (easing, set_easing) = create_signal(Easing::Smooth);
+    let (mode, set_mode) = create_signal(MouseMoveAnimationMode::None);
 
     // Animated derived signals
     let size = create_animated_signal(
-        cx,
         move || AnimationTarget {
             target: target_size.get(),
             duration: duration.get_untracked().into(),
@@ -41,7 +37,6 @@ pub fn Full(cx: Scope) -> impl IntoView {
     );
 
     let rotation = create_animated_signal(
-        cx,
         move || AnimationTarget {
             target: target_rotation.get(),
             duration: duration.get_untracked().into(),
@@ -52,7 +47,6 @@ pub fn Full(cx: Scope) -> impl IntoView {
     );
 
     let position = create_animated_signal(
-        cx,
         move || {
             let (target, mode) = target_position.get();
             AnimationTarget {
@@ -71,7 +65,6 @@ pub fn Full(cx: Scope) -> impl IntoView {
     );
 
     let color = create_animated_signal(
-        cx,
         move || AnimationTarget {
             target: target_color.get(),
             duration: duration.get_untracked().into(),
@@ -94,8 +87,8 @@ pub fn Full(cx: Scope) -> impl IntoView {
     );
 
     // Draw a square with the animated signals
-    let canvas_ref = create_node_ref::<Canvas>(cx);
-    create_effect(cx, move |_| {
+    let canvas_ref = create_node_ref::<Canvas>();
+    create_effect(move |_| {
         if let Some(canvas) = canvas_ref.get() {
             let ctx = canvas
                 .get_context("2d")
@@ -122,7 +115,7 @@ pub fn Full(cx: Scope) -> impl IntoView {
     });
 
     // Everything below this line is UI boilerplate
-    view! { cx,
+    view! {
         <main class="full">
             <div class="options">
                 <fieldset>
@@ -138,8 +131,12 @@ pub fn Full(cx: Scope) -> impl IntoView {
                                     blue: 0,
                                 })
                         }
-                        prop:checked=move || { matches!(target_color.get(), Color { red : 255, green : 0, blue : 0 }) }
+
+                        prop:checked=move || {
+                            matches!(target_color.get(), Color { red : 255, green : 0, blue : 0 })
+                        }
                     />
+
                     <label for="color_red">"Red"</label>
                     <input
                         type="radio"
@@ -152,8 +149,12 @@ pub fn Full(cx: Scope) -> impl IntoView {
                                     blue: 0,
                                 })
                         }
-                        prop:checked=move || { matches!(target_color.get(), Color { red : 0, green : 255, blue : 0 }) }
+
+                        prop:checked=move || {
+                            matches!(target_color.get(), Color { red : 0, green : 255, blue : 0 })
+                        }
                     />
+
                     <label for="color_green">"Green"</label>
                     <input
                         type="radio"
@@ -166,8 +167,12 @@ pub fn Full(cx: Scope) -> impl IntoView {
                                     blue: 255,
                                 })
                         }
-                        prop:checked=move || { matches!(target_color.get(), Color { red : 0, green : 0, blue : 255 }) }
+
+                        prop:checked=move || {
+                            matches!(target_color.get(), Color { red : 0, green : 0, blue : 255 })
+                        }
                     />
+
                     <label for="color_blue">"Blue"</label>
                     <input
                         type="color"
@@ -180,11 +185,13 @@ pub fn Full(cx: Scope) -> impl IntoView {
                                     blue: i16::from_str_radix(&color[5..7], 16).unwrap(),
                                 });
                         }
+
                         prop:value=move || {
                             let color = target_color.get();
                             format!("#{:02x}{:02x}{:02x}", color.red, color.green, color.blue)
                         }
                     />
+
                 </fieldset>
                 <fieldset>
                     <legend>"Rotation"</legend>
@@ -215,8 +222,11 @@ pub fn Full(cx: Scope) -> impl IntoView {
                         min="0"
                         max="360"
                         prop:value=move || { target_rotation.get() }
-                        on:input=move |e| { set_target_rotation.set(event_target_value(&e).parse().unwrap()) }
+                        on:input=move |e| {
+                            set_target_rotation.set(event_target_value(&e).parse().unwrap())
+                        }
                     />
+
                     {move || { target_rotation.get() }}
                     "°"
                 </fieldset>
@@ -305,15 +315,21 @@ pub fn Full(cx: Scope) -> impl IntoView {
                         type="radio"
                         id="mode_replace_or_start"
                         on:input=move |_| { set_mode.set(MouseMoveAnimationMode::ReplaceOrStart) }
-                        prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::ReplaceOrStart) }
+                        prop:checked=move || {
+                            matches!(mode.get(), MouseMoveAnimationMode::ReplaceOrStart)
+                        }
                     />
+
                     <label for="mode_replace_or_start">"ReplaceOrStart"</label>
                     <input
                         type="radio"
                         id="mode_replace_or_snap"
                         on:input=move |_| { set_mode.set(MouseMoveAnimationMode::ReplaceOrSnap) }
-                        prop:checked=move || { matches!(mode.get(), MouseMoveAnimationMode::ReplaceOrSnap) }
+                        prop:checked=move || {
+                            matches!(mode.get(), MouseMoveAnimationMode::ReplaceOrSnap)
+                        }
                     />
+
                     <label for="mode_replace_or_snap">"ReplaceOrSnap"</label>
                     <input
                         type="radio"
@@ -339,6 +355,7 @@ pub fn Full(cx: Scope) -> impl IntoView {
                                 AnimationMode::Start,
                             ));
                     }
+
                     on:mousemove=move |e| {
                         let position = Position {
                             x: e.offset_x() as f64,
@@ -357,7 +374,8 @@ pub fn Full(cx: Scope) -> impl IntoView {
                             }
                         }
                     }
-                ></canvas>
+                >
+                </canvas>
                 <br/>
                 "Left-click = Move position"
             </div>
