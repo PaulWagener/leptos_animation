@@ -16,9 +16,9 @@ pub mod easing;
 /// ```
 /// # use leptos::*;
 /// # use leptos_animation::AnimationContext;
-/// # let _ = create_scope(create_runtime(), || {
+/// # let runtime = create_runtime();
 ///  AnimationContext::provide();
-/// # });
+/// # runtime.dispose();
 /// ```
 #[derive(Copy, Clone)]
 pub struct AnimationContext {
@@ -257,7 +257,7 @@ impl PartialEq for SignalUpdate {
 /// # use std::time::Duration;
 /// # use leptos::*;
 /// # use leptos_animation::{AnimationContext, AnimationMode, AnimationTarget, create_animated_signal, easing, tween_default};
-/// # let _ = create_scope(create_runtime(), || {
+/// # let runtime = create_runtime();
 /// # AnimationContext::provide();
 /// let (value, set_value) = create_signal(42.0);
 ///
@@ -284,7 +284,7 @@ impl PartialEq for SignalUpdate {
 ///             (to - from) * progress + from
 ///         });
 ///
-/// # });
+/// # runtime.dispose();
 /// ```
 pub fn create_animated_signal<T, I>(
     source: impl Fn() -> AnimationTarget<T> + 'static,
@@ -438,6 +438,7 @@ where
     (*to - *from) * progress + *from
 }
 
+#[derive(Copy, Clone)]
 pub struct AnimatedSignal<I: 'static> {
     update_animation_status_effect: Effect<()>,
     animation_tick: Memo<SignalUpdate>,
