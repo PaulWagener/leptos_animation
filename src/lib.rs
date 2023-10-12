@@ -16,9 +16,9 @@ pub mod easing;
 /// ```
 /// # use leptos::*;
 /// # use leptos_animation::AnimationContext;
-/// # let _ = create_scope(create_runtime(), || {
+/// # let runtime = create_runtime();
 ///  AnimationContext::provide();
-/// # });
+/// # runtime.dispose();
 /// ```
 #[derive(Copy, Clone)]
 pub struct AnimationContext {
@@ -257,7 +257,7 @@ impl PartialEq for SignalUpdate {
 /// # use std::time::Duration;
 /// # use leptos::*;
 /// # use leptos_animation::{AnimationContext, AnimationMode, AnimationTarget, create_animated_signal, easing, tween_default};
-/// # let _ = create_scope(create_runtime(), || {
+/// # let runtime = create_runtime();
 /// # AnimationContext::provide();
 /// let (value, set_value) = create_signal(42.0);
 ///
@@ -284,12 +284,12 @@ impl PartialEq for SignalUpdate {
 ///             (to - from) * progress + from
 ///         });
 ///
-/// # });
+/// # runtime.dispose();
 /// ```
 pub fn create_animated_signal<T, I>(
     source: impl Fn() -> AnimationTarget<T> + 'static,
     tween: fn(&T, &T, f64) -> I,
-) -> AnimatedSignal<I>
+) -> AnimatedSignal<T, I>
 where
     T: 'static,
     T: Clone,
@@ -421,6 +421,7 @@ where
     });
 
     AnimatedSignal {
+        animation_status,
         update_animation_status_effect,
         animation_tick,
         animated_signal,
@@ -438,13 +439,15 @@ where
     (*to - *from) * progress + *from
 }
 
-pub struct AnimatedSignal<I: 'static> {
+#[derive(Copy, Clone)]
+pub struct AnimatedSignal<T: 'static, I: 'static> {
+    animation_status: StoredValue<AnimationStatus<T, I>>,
     update_animation_status_effect: Effect<()>,
     animation_tick: Memo<SignalUpdate>,
     animated_signal: Signal<I>,
 }
 
-impl<I> Deref for AnimatedSignal<I> {
+impl<T, I> Deref for AnimatedSignal<T, I> {
     type Target = Signal<I>;
 
     fn deref(&self) -> &Self::Target {
@@ -452,17 +455,18 @@ impl<I> Deref for AnimatedSignal<I> {
     }
 }
 
-impl<T> SignalDispose for AnimatedSignal<T> {
+impl<T, I> SignalDispose for AnimatedSignal<T, I> {
     fn dispose(self) {
+        self.animation_status.dispose();
         self.animation_tick.dispose();
         self.update_animation_status_effect.dispose();
         self.animated_signal.dispose();
     }
 }
 
-impl<T> IntoView for AnimatedSignal<T>
+impl<T, I> IntoView for AnimatedSignal<T, I>
 where
-    T: IntoView + Clone,
+    I: IntoView + Clone,
 {
     fn into_view(self) -> View {
         self.animated_signal.into_view()
