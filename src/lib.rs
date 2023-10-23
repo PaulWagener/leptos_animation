@@ -5,7 +5,8 @@ use std::{collections::VecDeque, ops::Sub, time::Duration};
 use leptos::{
     create_effect, create_memo, create_trigger, leptos_dom::helpers::AnimationFrameRequestHandle,
     on_cleanup, provide_context, request_animation_frame_with_handle, store_value, use_context,
-    Effect, IntoView, Memo, Signal, SignalDispose, SignalWith, StoredValue, Trigger, View,
+    Effect, IntoView, Memo, Signal, SignalDispose, SignalGet, SignalGetUntracked, SignalWith,
+    StoredValue, Trigger, View,
 };
 
 pub mod animation_target;
@@ -299,11 +300,16 @@ where
 {
     let context: AnimationContext = use_context()
         .expect("No AnimationContext present, call AnimationContext::provide() in a parent scope");
-    let animation_status = store_value(AnimationStatus::<T, I>::Static(source().target));
+
+    let source = Signal::derive(source);
+
+    let animation_status = store_value(AnimationStatus::<T, I>::Static(
+        source.get_untracked().target,
+    ));
 
     // Effect that listens to changes in the source and updates the animation status
     let update_animation_status_effect = create_effect(move |prev| {
-        let animation_target = source();
+        let animation_target = source.get();
 
         // Don't start an animation the very first run
         if prev.is_none() {
