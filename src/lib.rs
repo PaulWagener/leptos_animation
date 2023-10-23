@@ -98,6 +98,7 @@ impl AnimationContext {
 /// # use leptos_animation::AnimationTarget;
 /// let _: AnimationTarget<u32> = 42.into();
 /// ```
+#[derive(Clone)]
 pub struct AnimationTarget<T> {
     /// The final value to animate towards to
     pub target: T,
