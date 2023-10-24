@@ -99,7 +99,7 @@ impl AnimationContext {
 /// # use leptos_animation::AnimationTarget;
 /// let _: AnimationTarget<u32> = 42.into();
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub struct AnimationTarget<T> {
     /// The final value to animate towards to
     pub target: T,
@@ -117,7 +117,7 @@ pub struct AnimationTarget<T> {
 }
 
 /// The `AnimationMode` specifies how to handle new animation target values with respect to currently running animations
-#[derive(Clone)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum AnimationMode {
     /// Always start a new animation on top of the already running animations when the input signal changes.
     /// This is the default mode. For 'bursty' input signals which can update many times in quick succession (like mouse move events)
