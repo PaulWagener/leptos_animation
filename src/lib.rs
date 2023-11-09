@@ -1,4 +1,5 @@
 use instant::Instant;
+use std::fmt::Debug;
 use std::ops::{Add, Deref, Mul};
 use std::{collections::VecDeque, ops::Sub, time::Duration};
 
@@ -99,7 +100,7 @@ impl AnimationContext {
 /// # use leptos_animation::AnimationTarget;
 /// let _: AnimationTarget<u32> = 42.into();
 /// ```
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AnimationTarget<T> {
     /// The final value to animate towards to
     pub target: T,
@@ -117,7 +118,7 @@ pub struct AnimationTarget<T> {
 }
 
 /// The `AnimationMode` specifies how to handle new animation target values with respect to currently running animations
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnimationMode {
     /// Always start a new animation on top of the already running animations when the input signal changes.
     /// This is the default mode. For 'bursty' input signals which can update many times in quick succession (like mouse move events)
