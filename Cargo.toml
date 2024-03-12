@@ -10,5 +10,5 @@ license = "WTFPL"
 readme = "README.md"
 
 [dependencies]
-leptos = "0.5.1"
-instant = { version = "0.1.12", features = ["wasm-bindgen"] }
+leptos = { version = "0.6", features = ["nightly"] }
+instant = { version = "0.1", features = ["wasm-bindgen"] }
