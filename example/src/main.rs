@@ -23,16 +23,16 @@ fn main() {
         AnimationContext::provide();
 
         view! {
-            <Router>
+            <Router trailing_slash=TrailingSlash::Exact>
                 <h1>"Animation Demo"</h1>
                 <nav>
-                    <a href="/leptos_animation">"Full"</a>
+                    <a href="/leptos_animation/">"Full"</a>
                     <a href="/leptos_animation/simple">"Simple"</a>
                     <a href="/leptos_animation/text">"Text"</a>
                 </nav>
                 <Routes>
                     <Route
-                        path="/leptos_animation"
+                        path="/leptos_animation/"
                         view=|| {
                             view! { <Full/> }
                         }
