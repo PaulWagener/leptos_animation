@@ -1,4 +1,5 @@
 use instant::Instant;
+use std::cmp::PartialEq;
 use std::fmt::Debug;
 use std::ops::{Add, Deref, Mul};
 use std::{collections::VecDeque, ops::Sub, time::Duration};
@@ -12,6 +13,13 @@ use leptos::{
 
 pub mod animation_target;
 pub mod easing;
+
+#[derive(Clone)]
+enum AnimationContextState {
+    NoAnimationFrameRequested,
+    AnimationFrameRequested(AnimationFrameRequestHandle),
+    CustomAnimationFrameRequested,
+}
 
 /// The `AnimationContext` handles updating all animated values and calls to `window.request_animation_frame()`.
 /// It is required to provide one in a parent context before calling [`create_animated_signal()`]
@@ -28,7 +36,8 @@ pub struct AnimationContext {
     /// the `window.request_animation_frame()` callback. It is not necessary to notify or track
     /// this trigger yourself, it will happen automatically when animated signals exist.
     pub animation_frame: Trigger,
-    animation_frame_request_handle: StoredValue<Option<AnimationFrameRequestHandle>>,
+    state: StoredValue<AnimationContextState>,
+    custom_request_animation_frame: StoredValue<Option<Box<dyn Fn()>>>,
 }
 
 impl AnimationContext {
@@ -36,22 +45,86 @@ impl AnimationContext {
     /// need to call this once in a root component of the application.
     pub fn provide() -> AnimationContext {
         let animation_frame = create_trigger();
-        let animation_frame_request_handle =
-            store_value(Option::<AnimationFrameRequestHandle>::None);
+        let state = store_value(AnimationContextState::NoAnimationFrameRequested);
 
         let animation_context = AnimationContext {
             animation_frame,
-            animation_frame_request_handle,
+            state,
+            custom_request_animation_frame: store_value(None),
         };
-        provide_context(animation_context.clone());
+        provide_context(animation_context);
 
         on_cleanup(move || {
-            if let Some(handle) = animation_frame_request_handle.get_value() {
+            if let AnimationContextState::AnimationFrameRequested(handle) = state.get_value() {
                 handle.cancel()
             }
         });
 
         animation_context
+    }
+
+    /// This method can be used instead of `provide` when you are in a non-web environment such as
+    /// a desktop application. *For web environments it is recommended to use the normal `provide` instead*
+    ///
+    /// There are two extra callbacks that have to be correctly called and implemented in order
+    /// for this library to correctly function.
+    ///
+    /// The callback given in the argument has to call some function that triggers an animation frame
+    /// request. For example, in the `winit` crate this would be calling [`Window::request_redraw()`](https://docs.rs/winit/latest/winit/window/struct.Window.html#method.request_redraw).
+    /// This callback will be called at most once per animation frame.
+    ///
+    /// The callback returned from this function should be called when the animation frame from the
+    /// previous callback has arrived.
+    /// For example, in the `winit` crate this should be called when the [`WindowEvent::RedrawRequested`](https://docs.rs/winit/latest/winit/event/enum.WindowEvent.html#variant.RedrawRequested) event happens
+    /// Extraneous calls to this callback are ignored.
+    ///
+    /// ````
+    /// # // Lots of boilerplate to simulate winit environment
+    /// # use leptos::create_runtime;
+    /// # use leptos_animation::AnimationContext;
+    /// # struct Window {}
+    /// # impl Window { fn request_redraw(&self) {} }
+    /// # let window = Window {};
+    /// # let runtime = create_runtime();
+    /// # struct EventLoop {};
+    /// # impl EventLoop { fn run(&self, f: impl Fn(Event, ())) {} }
+    /// # let event_loop = EventLoop {};
+    /// # enum WindowEvent { RedrawRequested }
+    /// # enum Event { WindowEvent { event: WindowEvent}, Other }
+    /// let (_, on_redraw_requested) =
+    ///         AnimationContext::provide_with_custom_request_animation_frame(move || {
+    ///             window.request_redraw();
+    ///         });
+    ///
+    /// event_loop.run(move |event, elwt| match event {
+    ///         Event::WindowEvent {
+    ///             event: WindowEvent::RedrawRequested,
+    ///             ..
+    ///         } => on_redraw_requested(),
+    ///         _ => {}
+    /// });
+    ///
+    /// ````
+
+    pub fn provide_with_custom_request_animation_frame(
+        callback: impl Fn() + 'static,
+    ) -> (AnimationContext, impl Fn()) {
+        let animation_context = Self::provide();
+        animation_context
+            .custom_request_animation_frame
+            .set_value(Some(Box::new(callback)));
+
+        (animation_context, move || {
+            if !matches!(
+                animation_context.state.get_value(),
+                AnimationContextState::NoAnimationFrameRequested
+            ) {
+                animation_context
+                    .state
+                    .set_value(AnimationContextState::NoAnimationFrameRequested);
+                animation_context.animation_frame.notify();
+            }
+        })
     }
 
     /// Manually request a new animation frame. It will result in a `notify()` on the
@@ -62,16 +135,33 @@ impl AnimationContext {
     /// to call this function unless you are doing something custom.
     pub fn request_animation_frame(&self) {
         // Prevent multiple animation frame requests from existing simultaneously
-        if self.animation_frame_request_handle.get_value().is_none() {
-            let this = self.clone();
-
-            self.animation_frame_request_handle.set_value(Some(
-                request_animation_frame_with_handle(move || {
-                    this.animation_frame_request_handle.set_value(None);
-                    this.animation_frame.notify();
-                })
-                .unwrap(),
-            ));
+        if matches!(
+            self.state.get_value(),
+            AnimationContextState::NoAnimationFrameRequested
+        ) {
+            self.custom_request_animation_frame
+                .with_value(
+                    |custom_request_animation_frame| match custom_request_animation_frame {
+                        None => {
+                            let this = self.clone();
+                            self.state
+                                .set_value(AnimationContextState::AnimationFrameRequested(
+                                    request_animation_frame_with_handle(move || {
+                                        this.state.set_value(
+                                            AnimationContextState::NoAnimationFrameRequested,
+                                        );
+                                        this.animation_frame.notify();
+                                    })
+                                    .unwrap(),
+                                ))
+                        }
+                        Some(callback) => {
+                            self.state
+                                .set_value(AnimationContextState::CustomAnimationFrameRequested);
+                            callback()
+                        }
+                    },
+                );
         }
     }
 }
