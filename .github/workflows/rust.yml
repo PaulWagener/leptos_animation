@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,31 +19,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Install nightly
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
+      - uses: actions/checkout@v3
+      - name: Install nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
 
-    - name: Add wasm32-unknown-unknown
-      run: rustup target add wasm32-unknown-unknown
+      - name: Add wasm32-unknown-unknown
+        run: rustup target add wasm32-unknown-unknown
 
-    - name: Install Trunk
-      uses: jetli/trunk-action@v0.4.0
-      with:
-        version: 'latest'
-    
-    - name: Trunk build
-      run: trunk build example/index.html --release --public-url /leptos_animation
+      - name: Install Trunk
+        uses: jetli/trunk-action@v0.4.0
+        with:
+          version: "latest"
 
-    - name: Overwrite 404
-      run: cp example/dist/index.html example/dist/404.html
+      - name: Trunk build
+        run: trunk build example/index.html --release --public-url /leptos_animation
 
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v1
-      with:
-        path: ./example/dist
+      - name: Overwrite 404
+        run: cp example/dist/index.html example/dist/404.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./example/dist
 
   deploy:
     environment:
@@ -54,4 +54,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4

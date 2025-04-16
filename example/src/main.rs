@@ -4,6 +4,8 @@ use leptos_animation::*;
 use leptos_router::components::Route;
 use leptos_router::components::Router;
 use leptos_router::components::Routes;
+use leptos_router::components::A;
+
 use leptos_router::path;
 use simple::Simple;
 use std::panic;
@@ -24,30 +26,30 @@ fn main() {
         AnimationContext::provide();
 
         view! {
-            <Router>
+            <Router base="/leptos_animation">
                 <h1>"Animation Demo"</h1>
                 <nav>
-                    <a href="/leptos_animation/">Full</a>
-                    <a href="/leptos_animation/simple">Simple</a>
-                    <a href="/leptos_animation/text">Text</a>
+                    <A href="/leptos_animation/">Full</A>
+                    <A href="/leptos_animation/simple">Simple</A>
+                    <A href="/leptos_animation/text">Text</A>
                 </nav>
                 <Routes fallback=|| "Not found">
 
                     <Route
-                        path=path!("/leptos_animation/")
+                        path=path!("/")
                         view=|| {
                             view! { <Full/> }
                         }
                     />
                     <Route
-                        path=path!("/leptos_animation/simple")
+                        path=path!("simple")
                         view=|| {
                             view! { <Simple/> }
                         }
                     />
 
                     <Route
-                        path=path!("/leptos_animation/text")
+                        path=path!("text")
                         view=|| {
                             view! { <Text/> }
                         }
